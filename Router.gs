@@ -41,16 +41,16 @@ function diagnosticoGeral() {
 /** GET — Retorna todas as notas fiscais + cabeçalhos para tabela dinâmica */
 function routerGetNotas() {
   return _route(() => {
-    const { sheet } = _openSheet(SHEETS.NOTAS);
-    const headerMap = getHeaderMap(sheet);
+    const { sheet }        = _openSheet(SHEETS.NOTAS);
+    const { map, labels }  = getHeaderMap(sheet);
 
-    // Ordena as colunas pela posição original da planilha
-    const headers = Object.entries(headerMap)
+    // Ordena as chaves pela posição original da planilha
+    const headers = Object.entries(map)
       .sort((a, b) => a[1] - b[1])
       .map(([key]) => key);
 
     const data = fetchAll(SHEETS.NOTAS);
-    return { data, headers };
+    return { data, headers, labels };
   });
 }
 
