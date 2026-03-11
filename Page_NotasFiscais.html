@@ -110,6 +110,7 @@ const NotasFiscaisManager = (() => {
 
   let _allData  = [];
   let _headers  = [];
+  let _labels   = {}; // { chave_normalizada: "Nome Original da Planilha" }
   let _loaded   = false;
   let _sortCol  = null;
   let _sortDir  = 'asc';
@@ -140,15 +141,6 @@ const NotasFiscaisManager = (() => {
   }
 
   // ------------------------------------------------------------------
-  // Label legível: "data_emissao" → "Data Emissao"
-  // ------------------------------------------------------------------
-  function toLabel(key) {
-    return key
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  // ------------------------------------------------------------------
   // LOAD
   // ------------------------------------------------------------------
   function load() {
@@ -163,7 +155,8 @@ const NotasFiscaisManager = (() => {
           return;
         }
         _headers = res.headers || [];
-        _allData = res.data   || [];
+        _labels  = res.labels  || {};
+        _allData = res.data    || [];
         _loaded  = true;
         buildHeader();
         renderTable(_allData);
@@ -183,6 +176,7 @@ const NotasFiscaisManager = (() => {
     _loaded  = false;
     _allData = [];
     _headers = [];
+    _labels  = {};
     _sortCol = null;
     _sortDir = 'asc';
     load();
@@ -195,7 +189,7 @@ const NotasFiscaisManager = (() => {
     const tr = document.querySelector('#thead-notas tr');
     tr.innerHTML = _headers.map(key => `
       <th class="sortable" data-key="${key}">
-        ${toLabel(key)}
+        ${esc(_labels[key] || key)}
         <span class="material-symbols-rounded col-sort-icon">unfold_more</span>
       </th>
     `).join('');
@@ -333,4 +327,4 @@ const NotasFiscaisManager = (() => {
 
   return { load, reload };
 })();
-</script>
+          </script>
