@@ -1,0 +1,500 @@
+<style>
+/* ============================================================
+   IMPORTAR NOTA — Estilos locais
+   ============================================================ */
+
+.upload-zone {
+  border: 2px dashed var(--c-outline-variant);
+  border-radius: var(--border-radius-lg);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--t-normal), background-color var(--t-normal);
+  background: var(--c-surface-cont-low);
+  position: relative;
+}
+
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: var(--c-primary);
+  background: color-mix(in srgb, var(--c-primary) 5%, transparent);
+}
+
+.upload-zone .material-symbols-rounded {
+  font-size: 48px;
+  color: var(--c-outline);
+  font-variation-settings: 'FILL' 0, 'wght' 300;
+  display: block;
+  margin-bottom: 12px;
+  transition: color var(--t-normal);
+}
+
+.upload-zone:hover .material-symbols-rounded,
+.upload-zone.drag-over .material-symbols-rounded { color: var(--c-primary); }
+
+.upload-zone p     { font-size: 0.875rem; color: var(--c-on-surface-variant); margin-bottom: 4px; }
+.upload-zone small { font-size: 0.75rem; color: var(--c-outline); }
+
+#input-pdf { display: none; }
+
+.file-preview {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--c-surface-cont-low);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-md);
+  margin-top: 12px;
+}
+
+.file-preview.visible { display: flex; }
+
+.file-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--border-radius-sm);
+  background: color-mix(in srgb, var(--c-error) 12%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.file-icon .material-symbols-rounded { color: var(--c-error); font-size: 22px; font-variation-settings: 'FILL' 1; }
+.file-info { flex: 1; min-width: 0; }
+.file-name { font-size: 0.875rem; font-weight: 600; color: var(--c-on-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { font-size: 0.75rem; color: var(--c-outline); font-family: 'DM Mono', monospace; }
+
+.processing-state {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+}
+
+.processing-state.visible { display: flex; }
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--c-outline-variant);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.processing-state p     { font-size: 0.875rem; color: var(--c-on-surface-variant); }
+.processing-state small { font-size: 0.75rem; color: var(--c-outline); }
+
+.review-section { display: none; flex-direction: column; gap: 20px; }
+.review-section.visible { display: flex; }
+
+.review-alert {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--c-warning) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-warning) 30%, transparent);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.8125rem;
+  color: var(--c-on-surface-variant);
+}
+
+.review-alert .material-symbols-rounded { color: var(--c-warning); font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full-width { grid-column: 1 / -1; }
+
+.form-label {
+  font-size: 0.75rem; font-weight: 600;
+  color: var(--c-on-surface-variant);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: color-mix(in srgb, var(--c-primary) 12%, transparent);
+  color: var(--c-primary);
+  font-size: 0.6rem; font-weight: 700;
+  padding: 1px 6px; border-radius: 10px; margin-left: 6px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+.drive-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.8125rem; color: var(--c-primary); text-decoration: none; font-weight: 500;
+  padding: 8px 14px; border-radius: var(--border-radius-sm);
+  background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-primary) 20%, transparent);
+  transition: background-color var(--t-fast);
+}
+
+.drive-link:hover { background: color-mix(in srgb, var(--c-primary) 14%, transparent); }
+.drive-link .material-symbols-rounded { font-size: 16px; }
+
+.review-actions { display: flex; gap: 12px; justify-content: flex-end; padding-top: 4px; }
+
+.success-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 40px 24px; text-align: center; }
+.success-state.visible { display: flex; }
+
+.success-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: color-mix(in srgb, var(--c-success) 15%, transparent);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.success-icon .material-symbols-rounded { font-size: 36px; color: var(--c-success); font-variation-settings: 'FILL' 1; }
+.success-state h3 { font-size: 1.125rem; font-weight: 600; color: var(--c-on-surface); }
+.success-state p  { font-size: 0.875rem; color: var(--c-outline); max-width: 360px; }
+
+@media (max-width: 700px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-group.full-width { grid-column: 1; }
+}
+</style>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3>Importar Nota Fiscal</h3>
+      <p class="card-subtitle">Upload de PDF com extração inteligente via Gemini AI</p>
+    </div>
+  </div>
+
+  <!-- ETAPA 1: Upload -->
+  <div id="step-upload">
+    <div class="upload-zone" id="upload-zone">
+      <span class="material-symbols-rounded">folder_open</span>
+      <p>Arraste o PDF aqui ou clique para selecionar</p>
+      <small>Apenas arquivos .pdf · Máximo 10MB</small>
+      <input type="file" id="input-pdf" accept="application/pdf">
+    </div>
+
+    <div class="file-preview" id="file-preview">
+      <div class="file-icon">
+        <span class="material-symbols-rounded">picture_as_pdf</span>
+      </div>
+      <div class="file-info">
+        <div class="file-name" id="file-name">—</div>
+        <div class="file-size" id="file-size">—</div>
+      </div>
+      <button class="btn-icon" id="btn-remove-file" title="Remover arquivo">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button class="btn-filled" id="btn-extract" disabled>
+        <span class="material-symbols-rounded" style="font-size:18px">auto_awesome</span>
+        Extrair com IA
+      </button>
+    </div>
+  </div>
+
+  <!-- ETAPA 2: Processando -->
+  <div class="processing-state" id="step-processing">
+    <div class="spinner"></div>
+    <p>Analisando documento com Gemini AI...</p>
+    <small>Isso pode levar alguns segundos</small>
+  </div>
+
+  <!-- ETAPA 3: Revisão -->
+  <div class="review-section" id="step-review">
+
+    <div class="review-alert">
+      <span class="material-symbols-rounded">info</span>
+      <span>Revise os dados extraídos pela IA antes de confirmar. Campos incorretos podem ser editados diretamente.</span>
+    </div>
+
+    <div class="form-grid">
+
+      <div class="form-group full-width">
+        <label class="form-label">Fornecedor <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field" id="r-fornecedor" type="text" placeholder="Razão social do prestador">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">CNPJ Fornecedor <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field txt-mono" id="r-cnpj" type="text" placeholder="00.000.000/0000-00">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Número da NF <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field txt-mono" id="r-nfe" type="text" placeholder="Número da nota">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Data de Emissão <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field txt-mono" id="r-data-emissao" type="text" placeholder="dd/MM/yyyy">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Data de Vencimento <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field txt-mono" id="r-data-vencimento" type="text" placeholder="dd/MM/yyyy">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Valor Total <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field txt-mono" id="r-valor" type="text" placeholder="0.00">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Colaborador <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field" id="r-colaborador" type="text" placeholder="Nome do profissional">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Horas <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field txt-mono" id="r-horas" type="text" placeholder="Ex: 40">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Código de Iniciativa <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field txt-mono" id="r-iniciativa" type="text" placeholder="Ex: 2024-XYZ">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="input-field" id="r-status">
+          <option value="PENDENTE">Pendente</option>
+          <option value="PAGA">Paga</option>
+          <option value="CANCELADA">Cancelada</option>
+          <option value="EM ANÁLISE">Em Análise</option>
+        </select>
+      </div>
+
+      <div class="form-group full-width">
+        <label class="form-label">Descrição do Serviço <span class="ai-badge">✦ IA</span></label>
+        <input class="input-field" id="r-descricao" type="text" placeholder="Resumo da descrição do serviço">
+      </div>
+
+      <div class="form-group full-width" id="drive-link-wrapper" style="display:none">
+        <label class="form-label">Arquivo no Drive</label>
+        <a class="drive-link" id="r-drive-link" href="#" target="_blank">
+          <span class="material-symbols-rounded">open_in_new</span>
+          Ver PDF original no Google Drive
+        </a>
+      </div>
+
+    </div>
+
+    <div class="review-actions">
+      <button class="btn-outlined" id="btn-cancel-review">
+        <span class="material-symbols-rounded" style="font-size:16px">restart_alt</span>
+        Cancelar
+      </button>
+      <button class="btn-filled" id="btn-confirm">
+        <span class="material-symbols-rounded" style="font-size:16px">check_circle</span>
+        Confirmar e Salvar
+      </button>
+    </div>
+  </div>
+
+  <!-- ETAPA 4: Sucesso -->
+  <div class="success-state" id="step-success">
+    <div class="success-icon">
+      <span class="material-symbols-rounded">check_circle</span>
+    </div>
+    <h3>Nota importada com sucesso!</h3>
+    <p>Os dados foram gravados na planilha e o PDF original está salvo no Google Drive.</p>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:8px;">
+      <button class="btn-filled" id="btn-import-another">
+        <span class="material-symbols-rounded" style="font-size:16px">add</span>
+        Importar outra nota
+      </button>
+      <button class="btn-outlined" id="btn-go-notas">
+        <span class="material-symbols-rounded" style="font-size:16px">receipt_long</span>
+        Ver Notas Fiscais
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const ImportarNotaManager = (() => {
+
+  let _file      = null;
+  let _base64    = null;
+  let _extracted = null;
+
+  const $  = id => document.getElementById(id);
+
+  const zone       = $('upload-zone');
+  const inputFile  = $('input-pdf');
+  const preview    = $('file-preview');
+  const btnExtract = $('btn-extract');
+  const btnRemove  = $('btn-remove-file');
+  const btnConfirm = $('btn-confirm');
+  const btnCancel  = $('btn-cancel-review');
+
+  // Navegação entre etapas
+  function showStep(name) {
+    ['step-upload','step-processing','step-review','step-success'].forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      el.style.display = 'none';
+      el.classList.remove('visible');
+    });
+    const target = $(name);
+    if (!target) return;
+    const flexSteps = ['step-processing','step-review','step-success'];
+    target.style.display = flexSteps.includes(name) ? 'flex' : '';
+    target.classList.add('visible');
+  }
+
+  // Upload zone
+  zone.addEventListener('click', () => inputFile.click());
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  });
+
+  inputFile.addEventListener('change', e => {
+    if (e.target.files[0]) setFile(e.target.files[0]);
+  });
+
+  btnRemove.addEventListener('click', e => { e.stopPropagation(); resetFile(); });
+
+  function setFile(file) {
+    if (file.type !== 'application/pdf') { alert('Selecione um arquivo PDF válido.'); return; }
+    if (file.size > 10 * 1024 * 1024)   { alert('Arquivo muito grande. Limite: 10MB.'); return; }
+    _file = file;
+    $('file-name').textContent = file.name;
+    $('file-size').textContent = formatBytes(file.size);
+    preview.classList.add('visible');
+    btnExtract.disabled = false;
+  }
+
+  function resetFile() {
+    _file = null; _base64 = null;
+    inputFile.value = '';
+    preview.classList.remove('visible');
+    btnExtract.disabled = true;
+  }
+
+  // Extração
+  btnExtract.addEventListener('click', extract);
+
+  function extract() {
+    if (!_file) return;
+    showStep('step-processing');
+    SyncMonitor.update('loading', 'Processando com Gemini...');
+    const t0 = performance.now();
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      _base64 = e.target.result.split(',')[1];
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success) {
+            showStep('step-upload');
+            SyncMonitor.update('error', res.message || 'Erro na extração');
+            alert('Erro ao processar o PDF:\n' + (res.message || 'Erro desconhecido'));
+            return;
+          }
+          _extracted = res.data;
+          fillForm(_extracted);
+          showStep('step-review');
+          SyncMonitor.update('success', 'Extração concluída', {
+            gas: res.metrics.executionTime,
+            cpu: performance.now() - t0
+          });
+        })
+        .withFailureHandler(err => {
+          showStep('step-upload');
+          SyncMonitor.update('error', 'Falha na comunicação');
+          alert('Falha na comunicação:\n' + err.message);
+        })
+        .routerExtractNota(_base64, _file.name);
+    };
+    reader.readAsDataURL(_file);
+  }
+
+  // Preencher formulário
+  function fillForm(d) {
+    const set = (id, val) => { const el=$(id); if(el) el.value = (val!=null) ? String(val) : ''; };
+    set('r-fornecedor',     d.fornecedor);
+    set('r-cnpj',           d.cnpj_fornecedor);
+    set('r-nfe',            d.nfe);
+    set('r-data-emissao',   d.data_emissao);
+    set('r-data-vencimento',d.data_vencimento);
+    set('r-valor',          d.valor_total);
+    set('r-colaborador',    d.colaborador);
+    set('r-horas',          d.horas);
+    set('r-iniciativa',     d.codigo_iniciativa);
+    set('r-descricao',      d.descricao_servico);
+    if (d.status) $('r-status').value = d.status;
+
+  }
+
+  // Confirmar e salvar
+  btnConfirm.addEventListener('click', confirm);
+
+  function confirm() {
+    const dataObj = {
+      fornecedor:        $('r-fornecedor').value.trim(),
+      cnpj_fornecedor:   $('r-cnpj').value.trim(),
+      nfe:               $('r-nfe').value.trim(),
+      data_emissao:      $('r-data-emissao').value.trim(),
+      data_vencimento:   $('r-data-vencimento').value.trim(),
+      valor_total:       $('r-valor').value.trim(),
+      colaborador:       $('r-colaborador').value.trim(),
+      horas:             $('r-horas').value.trim(),
+      codigo_iniciativa: $('r-iniciativa').value.trim(),
+      descricao_servico: $('r-descricao').value.trim(),
+      status:            $('r-status').value,
+    };
+    btnConfirm.disabled = true;
+    SyncMonitor.update('loading', 'Salvando na planilha...');
+    const t0 = performance.now();
+    google.script.run
+      .withSuccessHandler(res => {
+        btnConfirm.disabled = false;
+        if (!res.success) {
+          SyncMonitor.update('error', res.message || 'Erro ao salvar');
+          alert('Erro ao salvar:\n' + (res.message || 'Erro desconhecido'));
+          return;
+        }
+        SyncMonitor.update('success', 'Nota salva', {
+          gas: res.metrics.executionTime,
+          cpu: performance.now() - t0
+        });
+        showStep('step-success');
+      })
+      .withFailureHandler(err => {
+        btnConfirm.disabled = false;
+        SyncMonitor.update('error', 'Falha ao salvar');
+        alert('Falha na comunicação:\n' + err.message);
+      })
+      .routerConfirmImportNota(dataObj);
+  }
+
+  // Cancelar / reset
+  btnCancel.addEventListener('click', reset);
+  $('btn-import-another').addEventListener('click', reset);
+
+  $('btn-go-notas').addEventListener('click', () => {
+    const navItem = document.querySelector('[onclick*="view-notas-fiscais"]');
+    if (navItem && typeof handleNav === 'function') handleNav(navItem, 'view-notas-fiscais', 'Notas Fiscais');
+  });
+
+  function reset() {
+    _file = null; _base64 = null; _extracted = null;
+    resetFile();
+    showStep('step-upload');
+  }
+
+  function formatBytes(b) {
+    if (b < 1024)    return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+    return (b/1048576).toFixed(1) + ' MB';
+  }
+
+  showStep('step-upload');
+  return {};
+})();
+</script>
