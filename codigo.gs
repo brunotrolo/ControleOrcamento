@@ -19,3 +19,28 @@ function doGet() {
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
+
+function configurarGeminiKey() {
+  GeminiService.saveApiKey("SUA_API_KEY_AQUI");
+}
+
+function verificarKey() {
+  Logger.log(PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY"));
+}
+
+function limparCache() {
+  const cache = CacheService.getScriptCache();
+  const abas = [
+    "NOTA_FISCAL",
+    "NOTA_FISCAL_ANALITICO",
+    "FORNECEDOR",
+    "PRESTADOR",
+    "FORECAST",
+    "HISTOGRAMA",
+  ];
+  abas.forEach(aba => {
+    cache.remove("hmap_"  + aba);
+    cache.remove("hmap2_" + aba);
+  });
+  Logger.log("Cache limpo para: " + abas.join(", "));
+}
