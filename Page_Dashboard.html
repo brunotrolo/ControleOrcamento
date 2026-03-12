@@ -780,7 +780,7 @@
     leg += '<text x="'+(PL+191)+'" y="13" font-size="10" fill="'+c.text+'">Tendencia</text>';
 
     document.getElementById('chart-evol-wrap').innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" style="display:block;max-width:100%">'+
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block">'+
       leg+grid+
       '<line x1="'+PL+'" y1="'+PT+'" x2="'+PL+'" y2="'+(PT+cH)+'" stroke="'+c.grid+'" stroke-width="1"/>'+
       '<line x1="'+PL+'" y1="'+(PT+cH)+'" x2="'+(W-PR)+'" y2="'+(PT+cH)+'" stroke="'+c.grid+'" stroke-width="1"/>'+
