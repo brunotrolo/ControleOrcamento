@@ -1,0 +1,276 @@
+<!--
+  ============================================================================
+  Page_Fornecedor.html — Página independente de Notas Fiscais Analítico
+  ============================================================================
+  Tabela própria. Modal compartilhado via window.CrudModal.
+  Para customizações específicas desta página, edite apenas este arquivo.
+  ============================================================================
+-->
+<style>
+  /* Customizações exclusivas desta página */
+  #view-nota_fiscal_analitico .page-accent { color: var(--c-primary); }
+</style>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3>Notas Fiscais Analítico</h3>
+      <p class="card-subtitle">Visão analítica das notas fiscais</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn-icon" id="nfa-refresh" title="Atualizar">
+        <span class="material-symbols-rounded">refresh</span>
+      </button>
+      <button class="btn-filled" id="nfa-new">
+        <span class="material-symbols-rounded" style="font-size:17px">add</span>
+        Nova Nota
+      </button>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+    <div class="search-box" style="flex:1;min-width:180px;max-width:320px;display:flex;align-items:center;gap:8px;background:var(--c-surface-cont-low);border:1px solid var(--c-outline-variant);border-radius:var(--border-radius-sm);padding:0 12px;transition:border-color var(--t-fast),box-shadow var(--t-fast);"
+      onfocus="this.style.borderColor='var(--c-primary)'" onblur="this.style.borderColor=''">
+      <span class="material-symbols-rounded" style="font-size:18px;color:var(--c-outline);flex-shrink:0">search</span>
+      <input id="nfa-filter" type="text" placeholder="Filtrar notas..."
+        style="border:none;background:transparent;outline:none;font-size:0.875rem;color:var(--c-on-surface);font-family:inherit;width:100%;padding:9px 0;">
+    </div>
+    <span id="nfa-count" style="font-size:0.775rem;color:var(--c-outline);font-family:'DM Mono',monospace;white-space:nowrap;">— registros</span>
+  </div>
+
+  <!-- Barra de ações ao selecionar -->
+  <div id="nfa-actions-bar" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:color-mix(in srgb,var(--c-error) 8%,transparent);border:1px solid color-mix(in srgb,var(--c-error) 20%,transparent);border-radius:var(--border-radius-sm);margin-bottom:12px;">
+    <span id="nfa-sel-label" style="font-size:0.8125rem;font-weight:600;color:var(--c-error);flex:1;">0 selecionados</span>
+    <button class="btn-outlined" id="nfa-deselect">
+      <span class="material-symbols-rounded" style="font-size:16px">close</span>
+      Limpar seleção
+    </button>
+    <button class="btn-filled" id="nfa-delete-sel" style="background:var(--c-error)">
+      <span class="material-symbols-rounded" style="font-size:16px">delete</span>
+      Excluir selecionados
+    </button>
+  </div>
+
+  <!-- Tabela -->
+  <div style="overflow-x:auto;border-radius:var(--border-radius-md);border:1px solid var(--c-outline-variant);">
+    <table class="modern-table" id="nfa-table">
+      <thead><tr id="nfa-thead"></tr></thead>
+      <tbody id="nfa-tbody">
+        <tr><td style="padding:32px;text-align:center;color:var(--c-outline)">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function () {
+  const SHEET      = 'NOTA_FISCAL_ANALITICO';
+  const PAGE_TITLE = 'Notas Fiscais Analítico';
+
+  let _data    = [], _headers = [], _labels = {};
+  let _loaded  = false;
+  let _sortCol = null, _sortDir = 'asc';
+
+  const MONEY_RE  = /valor|preco|custo|realizado|liquido|bruto/i;
+  const MONO_RE   = /cnpj|cpf|nfe|codigo|id|ref|numero|data|competencia/i;
+  const STATUS_RE = /status/i;
+  const STATUS_MAP = {
+    'ativo':'badge-success','ativa':'badge-success',
+    'inativo':'badge-error','inativa':'badge-error',
+    'pendente':'badge-warning',
+  };
+
+  function _badgeClass(v) { return STATUS_MAP[(v||'').toLowerCase().trim()] || 'badge-neutral'; }
+  function _esc(v)        { return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _fmtMoeda(v)   { const n=parseFloat(String(v).replace(',','.')); return isNaN(n)?_esc(String(v)):n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+  function _colClass(k)   { if(MONEY_RE.test(k)) return 'col-valor'; if(MONO_RE.test(k)) return 'col-mono'; return ''; }
+
+  function _renderCell(key, raw) {
+    const val = (raw !== null && raw !== undefined && raw !== '') ? raw : null;
+    if (val === null) return STATUS_RE.test(key) ? '<span class="badge badge-neutral">—</span>' : '<span style="opacity:.35">—</span>';
+    if (STATUS_RE.test(key)) return `<span class="badge ${_badgeClass(String(val))}">${_esc(String(val))}</span>`;
+    if (MONEY_RE.test(key))  return _fmtMoeda(val);
+    return _esc(String(val));
+  }
+
+  function _checkedRows() {
+    return [...document.querySelectorAll('#nfa-tbody input.row-cb:checked')].map(cb => parseInt(cb.dataset.row));
+  }
+
+  function _updateActionsBar() {
+    const rows = _checkedRows();
+    const bar  = document.getElementById('nfa-actions-bar');
+    if (rows.length > 0) {
+      bar.style.display = 'flex';
+      document.getElementById('nfa-sel-label').textContent = rows.length + ' selecionado' + (rows.length > 1 ? 's' : '');
+    } else {
+      bar.style.display = 'none';
+    }
+  }
+
+  function _modalConfig() {
+    return {
+      sheetName:  SHEET,
+      pageTitle:  PAGE_TITLE,
+      headers:    _headers,
+      labels:     _labels,
+      onSaved:    reload,
+    };
+  }
+
+  // ── LOAD ──────────────────────────────────────────────────────────────
+  function load() {
+    if (_loaded) return;
+    SyncMonitor.update('loading', 'Carregando ' + PAGE_TITLE + '...');
+    const t0 = performance.now();
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res.success) { SyncMonitor.update('error', res.message); return; }
+        _headers = res.headers || [];
+        _labels  = res.labels  || {};
+        _data    = res.data    || [];
+        _loaded  = true;
+        buildHeader();
+        renderTable(_data);
+        SyncMonitor.update('success', PAGE_TITLE + ' carregado', { gas: res.metrics.executionTime, cpu: performance.now() - t0 });
+      })
+      .withFailureHandler(err => { SyncMonitor.update('error', 'Falha na comunicação'); console.error(err); })
+      .routerGetSheet(SHEET);
+  }
+
+  function _showSkeleton() {
+    const tbody = document.getElementById('nfa-tbody');
+    if (!tbody || !_headers.length) return;
+    const cols = _headers.length + 2;
+    tbody.innerHTML = Array(5).fill(0).map(() =>
+      `<tr class="row-skeleton">${Array(cols).fill('<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>').join('')}</tr>`
+    ).join('');
+  }
+
+  function reload() {
+    _loaded = false; _data = []; _sortCol = null; _sortDir = 'asc';
+    _showSkeleton();
+    load();
+  }
+
+  // ── CABEÇALHO ─────────────────────────────────────────────────────────
+  function buildHeader() {
+    const thead = document.getElementById('nfa-thead');
+    thead.innerHTML = `
+      <th style="width:40px"><input type="checkbox" class="row-cb" id="nfa-check-all" style="accent-color:var(--c-primary);cursor:pointer;width:15px;height:15px;"></th>
+      ${_headers.map(key => `
+        <th data-key="${key}" style="cursor:pointer;user-select:none;" class="${key===_sortCol?'sort-'+_sortDir:''}">
+          ${_esc(_labels[key]||key)}
+          <span class="material-symbols-rounded" style="font-size:13px;opacity:${key===_sortCol?'1':'0.3'};vertical-align:middle;margin-left:3px;color:${key===_sortCol?'var(--c-primary)':'inherit'}">
+            ${key===_sortCol?(_sortDir==='asc'?'arrow_upward':'arrow_downward'):'unfold_more'}
+          </span>
+        </th>`).join('')}
+      <th style="width:48px;text-align:center"></th>`;
+
+    thead.querySelectorAll('th[data-key]').forEach(th => th.addEventListener('click', () => sortBy(th.dataset.key)));
+    document.getElementById('nfa-check-all').addEventListener('change', e => {
+      document.querySelectorAll('#nfa-tbody input.row-cb').forEach(cb => {
+        cb.checked = e.target.checked;
+        cb.closest('tr').classList.toggle('row-selected', e.target.checked);
+      });
+      _updateActionsBar();
+    });
+  }
+
+  // ── RENDERIZAÇÃO ──────────────────────────────────────────────────────
+  function renderTable(data) {
+    document.getElementById('nfa-count').textContent = data.length + ' registros';
+    document.getElementById('nfa-actions-bar').style.display = 'none';
+    const tbody = document.getElementById('nfa-tbody');
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="${_headers.length+2}" style="padding:40px;text-align:center;color:var(--c-outline)">Nenhum registro encontrado.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = data.map(row => {
+      const rn = row.__rowNumber;
+      return `<tr data-row="${rn}">
+        <td style="width:40px;text-align:center"><input type="checkbox" class="row-cb" data-row="${rn}" style="accent-color:var(--c-primary);cursor:pointer;width:15px;height:15px;"></td>
+        ${_headers.map(key => {
+          const cls = _colClass(key);
+          return `<td${cls?` class="${cls}"`:''}>${_renderCell(key,row[key])}</td>`;
+        }).join('')}
+        <td style="width:48px;text-align:center">
+          <button class="btn-row-edit" data-row="${rn}" title="Editar" style="background:transparent;border:none;border-radius:50%;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--c-outline);opacity:0;transition:opacity var(--t-fast),background var(--t-fast),color var(--t-fast)">
+            <span class="material-symbols-rounded" style="font-size:17px">edit</span>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('input.row-cb').forEach(cb => {
+      cb.addEventListener('change', e => {
+        e.target.closest('tr').classList.toggle('row-selected', e.target.checked);
+        _updateActionsBar();
+      });
+    });
+
+    tbody.querySelectorAll('.btn-row-edit').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const rn  = parseInt(btn.dataset.row);
+        const row = _data.find(r => r.__rowNumber === rn);
+        CrudModal.openEdit(_modalConfig(), rn, row);
+      });
+    });
+
+    // Mostrar botão editar ao passar o mouse
+    tbody.querySelectorAll('tr').forEach(tr => {
+      tr.addEventListener('mouseenter', () => { const b = tr.querySelector('.btn-row-edit'); if(b) b.style.opacity='1'; });
+      tr.addEventListener('mouseleave', () => { const b = tr.querySelector('.btn-row-edit'); if(b) b.style.opacity='0'; });
+    });
+  }
+
+  // ── ORDENAÇÃO ─────────────────────────────────────────────────────────
+  function sortBy(key) {
+    _sortDir = (_sortCol === key && _sortDir === 'asc') ? 'desc' : 'asc';
+    _sortCol = key;
+    buildHeader();
+    const q      = document.getElementById('nfa-filter').value;
+    const source = applyFilter(q, false);
+    renderTable([...source].sort((a,b) => {
+      const va=String(a[key]||''), vb=String(b[key]||'');
+      return _sortDir==='asc'?va.localeCompare(vb,'pt-BR'):vb.localeCompare(va,'pt-BR');
+    }));
+  }
+
+  // ── FILTRO ────────────────────────────────────────────────────────────
+  function applyFilter(query, doRender = true) {
+    const filtered = query
+      ? _data.filter(row => _headers.some(k => String(row[k]||'').toLowerCase().includes(query.toLowerCase())))
+      : _data;
+    if (doRender) renderTable(filtered);
+    return filtered;
+  }
+
+  // ── EVENTOS ───────────────────────────────────────────────────────────
+  document.getElementById('nfa-refresh').addEventListener('click', reload);
+
+  document.getElementById('nfa-new').addEventListener('click', () => CrudModal.openCreate(_modalConfig()));
+
+  document.getElementById('nfa-deselect').addEventListener('click', () => {
+    document.querySelectorAll('#nfa-tbody input.row-cb').forEach(cb => { cb.checked = false; cb.closest('tr').classList.remove('row-selected'); });
+    const all = document.getElementById('nfa-check-all'); if(all) all.checked = false;
+    document.getElementById('nfa-actions-bar').style.display = 'none';
+  });
+
+  document.getElementById('nfa-delete-sel').addEventListener('click', () => {
+    const rows = _checkedRows();
+    if (!rows.length) return;
+    CrudModal.confirmDelete(_modalConfig(), rows, reload);
+  });
+
+  let _deb;
+  document.getElementById('nfa-filter').addEventListener('input', e => {
+    clearTimeout(_deb); _deb = setTimeout(() => applyFilter(e.target.value), 200);
+  });
+
+  // ── ACTIVAÇÃO POR EVENTO ──────────────────────────────────────────────
+  window.addEventListener('viewFocus', e => { if (e.detail.viewId === 'view-nota_fiscal_analitico') load(); });
+})();
+</script>

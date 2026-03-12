@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BudgetDev | Gestão Orçamentária</title>
+  <?!= include('Styles'); ?>
+  <?!= include('CrudModal'); ?>
+</head>
+
+<body class="light-theme">
+<div class="app-layout">
+
+  <?!= include('MenuSidebar'); ?>
+
+  <div class="main-content">
+
+    <!-- TOP BAR -->
+    <header class="top-bar">
+      <h1 id="page-title">Visão Geral</h1>
+
+      <div class="top-bar-actions">
+        <!-- Monitor de Sincronização -->
+        <div id="sync-monitor" class="sync-status idle">
+          <span id="sync-timer">GAS: --s | CPU: --ms</span>
+          <span class="material-symbols-rounded" id="sync-icon">radio_button_checked</span>
+          <span id="sync-label">Sincronizado</span>
+        </div>
+
+        <!-- Toggle de Tema -->
+        <button id="theme-toggle" class="btn-icon" aria-label="Alternar tema">
+          <span class="material-symbols-rounded">dark_mode</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- SCROLL WRAPPER — único overflow-y da área de conteúdo -->
+    <div class="view-scroll">
+
+      <div id="view-dashboard" class="view-container active">
+        <?!= include('Page_Dashboard'); ?>
+      </div>
+
+      <div id="view-notas-fiscais" class="view-container">
+        <?!= include('Page_NotasFiscais'); ?>
+      </div>
+
+      <div id="view-fornecedor" class="view-container">
+        <?!= include('Page_Fornecedor'); ?>
+      </div>
+
+      <div id="view-nota_fiscal_analitico" class="view-container">
+        <?!= include('Page_NotaFiscalAnalitico'); ?>
+      </div>
+
+      <div id="view-prestador" class="view-container">
+        <?!= include('Page_Prestador'); ?>
+      </div>
+
+      <div id="view-forecast" class="view-container">
+        <?!= include('Page_Forecast'); ?>
+      </div>
+
+      <div id="view-importar-nota" class="view-container">
+        <?!= include('Page_ImportarNota'); ?>
+      </div>
+
+      <div id="view-histograma" class="view-container">
+        <?!= include('Page_Histograma'); ?>
+      </div>
+
+      <div id="view-debug" class="view-container">
+        <?!= include('Page_Debug'); ?>
+      </div>
+
+    </div><!-- /view-scroll -->
+  </div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<script>
+/* ============================================================
+   NAVEGAÇÃO
+   ============================================================ */
+function navigateTo(viewId, title) {
+  document.querySelectorAll('.view-container').forEach(v => {
+    v.classList.remove('active');
+  });
+
+  const target = document.getElementById(viewId);
+  if (target) {
+    target.classList.add('active');
+    document.getElementById('page-title').textContent = title;
+
+    // Notifica a view que ela está em foco (lazy loading)
+    window.dispatchEvent(new CustomEvent('viewFocus', { detail: { viewId } }));
+  }
+}
+
+/* ============================================================
+   SYNC MONITOR (global — acessível por todas as pages)
+   ============================================================ */
+const SyncMonitor = (() => {
+  const _el    = () => document.getElementById('sync-monitor');
+  const _icon  = () => document.getElementById('sync-icon');
+  const _label = () => document.getElementById('sync-label');
+  const _timer = () => document.getElementById('sync-timer');
+  const _dot   = () => document.getElementById('status-dot');
+  const _dLabel= () => document.querySelector('.status-label');
+
+  let _successTimer = null;
+
+  return {
+    update(state, message, metrics) {
+      const el = _el();
+      if (!el) return;
+
+      el.className = 'sync-status ' + state;
+      if (_label()) _label().textContent = message;
+
+      if (state === 'loading') {
+        if (_icon()) _icon().textContent = 'sync';
+        if (_dot())  _dot().className = 'dot pulse-blue';
+        if (_dLabel()) _dLabel().textContent = 'Sincronizando...';
+        clearTimeout(_successTimer);
+      } else {
+        if (_icon()) _icon().textContent = 'radio_button_checked';
+
+        if (metrics && _timer()) {
+          const s  = (metrics.gas / 1000).toFixed(2);
+          const ms = Math.round(metrics.cpu);
+          _timer().textContent = `GAS: ${s}s | CPU: ${ms}ms`;
+        }
+
+        if (state === 'success') {
+          if (_dot())  _dot().className = 'dot pulse-green';
+          if (_dLabel()) _dLabel().textContent = 'Sistema Online';
+          _successTimer = setTimeout(() => {
+            if (_el()) _el().className = 'sync-status idle';
+            if (_label()) _label().textContent = 'Sincronizado';
+          }, 3000);
+        } else if (state === 'error') {
+          if (_dot())  _dot().className = 'dot pulse-red';
+          if (_dLabel()) _dLabel().textContent = 'Erro de Conexão';
+        }
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   TEMA
+   ============================================================ */
+(function initTheme() {
+  const btn   = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('bd-theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark-theme' : 'light-theme');
+
+  function apply(theme) {
+    document.body.className = theme;
+    const icon = btn && btn.querySelector('.material-symbols-rounded');
+    if (icon) icon.textContent = theme === 'dark-theme' ? 'light_mode' : 'dark_mode';
+  }
+
+  apply(saved);
+
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const next = document.body.classList.contains('dark-theme') ? 'light-theme' : 'dark-theme';
+      apply(next);
+      localStorage.setItem('bd-theme', next);
+    });
+  }
+})();
+
+/* ============================================================
+   BOOT — dispara a view inicial
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  window.dispatchEvent(new CustomEvent('viewFocus', { detail: { viewId: 'view-dashboard' } }));
+});
+</script>
+</body>
+</html>

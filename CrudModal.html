@@ -1,0 +1,426 @@
+<!--
+  ============================================================================
+  CrudModal.html — Modal Compartilhado de CRUD
+  ============================================================================
+  Incluído UMA VEZ no Index.html. Expõe a API global window.CrudModal.
+
+  API:
+    CrudModal.openCreate(config)
+    CrudModal.openEdit(config, rowNumber, rowData)
+    CrudModal.confirmDelete(config, rowNumbers, onSuccess)
+
+  config = {
+    sheetName:  "NOME_DA_ABA",
+    pageTitle:  "Nome da Página",
+    headers:    ["chave1", "chave2", ...],
+    labels:     { chave1: "Label Original", ... },
+    onSaved:    function() {},   // callback após salvar com sucesso
+  }
+  ============================================================================
+-->
+
+<style>
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.cm-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+}
+
+.cm-overlay.open { display: flex; animation: fadeIn var(--t-fast) both; }
+
+.cm-modal {
+  background: var(--c-surface);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--el-3);
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--c-outline-variant);
+  animation: cmSlideUp var(--t-normal) both;
+}
+
+@keyframes cmSlideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.cm-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--c-outline-variant);
+  flex-shrink: 0;
+}
+
+.cm-title    { font-size: 1rem; font-weight: 600; color: var(--c-on-surface); }
+.cm-subtitle { font-size: 0.75rem; color: var(--c-outline); margin-top: 2px; }
+
+.cm-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.cm-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.cm-form-group { display: flex; flex-direction: column; gap: 6px; }
+
+.cm-form-label {
+  font-size: 0.72rem; font-weight: 600;
+  color: var(--c-on-surface-variant);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.cm-footer {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 10px; padding: 16px 24px;
+  border-top: 1px solid var(--c-outline-variant);
+  flex-shrink: 0;
+}
+
+/* ── Confirm Delete ──────────────────────────────────────────────────────── */
+.cm-confirm {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1100;
+  align-items: center; justify-content: center;
+  padding: 24px;
+}
+
+.cm-confirm.open { display: flex; }
+
+.cm-confirm-box {
+  background: var(--c-surface);
+  border-radius: var(--border-radius-lg);
+  padding: 28px;
+  max-width: 380px; width: 100%;
+  box-shadow: var(--el-3);
+  border: 1px solid var(--c-outline-variant);
+  text-align: center;
+  animation: cmSlideUp var(--t-normal) both;
+}
+
+.cm-confirm-box .material-symbols-rounded {
+  font-size: 44px; color: var(--c-error);
+  font-variation-settings: 'FILL' 0, 'wght' 300;
+}
+
+.cm-confirm-box h4 { font-size: 1rem; font-weight: 600; margin: 12px 0 6px; color: var(--c-on-surface); }
+.cm-confirm-box p  { font-size: 0.8125rem; color: var(--c-outline); margin-bottom: 20px; }
+.cm-confirm-btns   { display: flex; gap: 10px; justify-content: center; }
+
+/* ── Spinner no botão salvar ─────────────────────────────────────────────── */
+@keyframes cm-spin { to { transform: rotate(360deg); } }
+
+.cm-save-spinner {
+  width: 15px; height: 15px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: cm-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+#cm-save[data-saving] {
+  opacity: 0.85;
+  pointer-events: none;
+  gap: 8px;
+}
+
+/* Skeleton de linha para reload da tabela em background */
+@keyframes cm-shimmer {
+  from { background-position: -600px 0; }
+  to   { background-position:  600px 0; }
+}
+
+.row-skeleton td {
+  background: linear-gradient(90deg,
+    var(--c-surface-cont-low) 25%,
+    var(--c-surface-cont)     50%,
+    var(--c-surface-cont-low) 75%);
+  background-size: 600px 100%;
+  animation: cm-shimmer 1.2s ease-in-out infinite;
+  color: transparent !important;
+  border-radius: 4px;
+  user-select: none;
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.cm-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--c-on-surface); color: var(--c-surface);
+  padding: 10px 20px; border-radius: 20px;
+  font-size: 0.8125rem; font-weight: 500;
+  box-shadow: var(--el-3); z-index: 2000;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+  white-space: nowrap;
+}
+
+.cm-toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+.cm-toast.toast-error { background: var(--c-error); color: #fff; }
+
+@media (max-width: 600px) {
+  .cm-form-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<!-- Overlay do modal criar/editar -->
+<div class="cm-overlay" id="cm-overlay">
+  <div class="cm-modal">
+    <div class="cm-header">
+      <div>
+        <div class="cm-title"    id="cm-title">Novo Registro</div>
+        <div class="cm-subtitle" id="cm-subtitle"></div>
+      </div>
+      <button class="btn-icon" id="cm-close">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+    <div class="cm-body">
+      <div class="cm-form-grid" id="cm-form-grid"></div>
+    </div>
+    <div class="cm-footer">
+      <button class="btn-outlined" id="cm-cancel">Cancelar</button>
+      <button class="btn-filled" id="cm-save">
+        <span class="material-symbols-rounded" id="cm-save-icon" style="font-size:16px">save</span>
+        <span class="cm-save-spinner" id="cm-save-spinner" style="display:none"></span>
+        <span id="cm-save-label">Salvar</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete -->
+<div class="cm-confirm" id="cm-confirm">
+  <div class="cm-confirm-box">
+    <span class="material-symbols-rounded">delete_forever</span>
+    <h4>Confirmar exclusão</h4>
+    <p id="cm-confirm-msg">Deseja remover os registros selecionados?</p>
+    <div class="cm-confirm-btns">
+      <button class="btn-outlined" id="cm-confirm-cancel">Cancelar</button>
+      <button class="btn-filled"   id="cm-confirm-ok" style="background:var(--c-error)">
+        <span class="material-symbols-rounded" style="font-size:16px">delete</span>
+        Excluir
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="cm-toast" id="cm-toast"></div>
+
+<script>
+window.CrudModal = (() => {
+
+  // ── Referências fixas ────────────────────────────────────────────────────
+  const overlay   = document.getElementById('cm-overlay');
+  const confirmEl = document.getElementById('cm-confirm');
+  const formGrid  = document.getElementById('cm-form-grid');
+  const toastEl   = document.getElementById('cm-toast');
+
+  // ── Estado interno ───────────────────────────────────────────────────────
+  let _config    = null;
+  let _editRow   = null; // null = criar | { rowNumber, data } = editar
+  let _deleteCb  = null; // callback após delete confirmado
+  let _deleteRows= [];
+  let _toastTimer= null;
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  function toast(msg, isError = false) {
+    clearTimeout(_toastTimer);
+    toastEl.textContent = msg;
+    toastEl.className   = 'cm-toast' + (isError ? ' toast-error' : '');
+    toastEl.classList.add('show');
+    _toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3200);
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function _esc(v) {
+    return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _close() {
+    overlay.classList.remove('open');
+    _config  = null;
+    _editRow = null;
+  }
+
+  function _buildForm(config, rowData) {
+    formGrid.innerHTML = config.headers.map(key => `
+      <div class="cm-form-group">
+        <label class="cm-form-label">${_esc(config.labels[key] || key)}</label>
+        <input
+          class="input-field"
+          data-key="${key}"
+          type="text"
+          placeholder="${_esc(config.labels[key] || key)}"
+          value="${rowData ? _esc(String(rowData[key] ?? '')) : ''}"
+        >
+      </div>
+    `).join('');
+  }
+
+  function _collectForm() {
+    const obj = {};
+    formGrid.querySelectorAll('input[data-key]').forEach(inp => {
+      obj[inp.dataset.key] = inp.value.trim();
+    });
+    return obj;
+  }
+
+  // ── Spinner helpers ──────────────────────────────────────────────────────
+  function _saveBtnLoading(on) {
+    const btn     = document.getElementById('cm-save');
+    const icon    = document.getElementById('cm-save-icon');
+    const spinner = document.getElementById('cm-save-spinner');
+    const label   = document.getElementById('cm-save-label');
+    if (on) {
+      btn.setAttribute('data-saving', '');
+      icon.style.display    = 'none';
+      spinner.style.display = 'block';
+      label.textContent     = 'Salvando...';
+    } else {
+      btn.removeAttribute('data-saving');
+      icon.style.display    = '';
+      spinner.style.display = 'none';
+      label.textContent     = 'Salvar';
+    }
+  }
+
+  // ── Salvar ───────────────────────────────────────────────────────────────
+  function _save() {
+    if (!_config) return;
+    const dataObj  = _collectForm();
+    const onSaved  = _config.onSaved;   // captura antes do _close() zerar _config
+    const isEdit   = !!_editRow;
+    const sheet    = _config.sheetName;
+    const rowNum   = _editRow ? _editRow.rowNumber : null;
+
+    _saveBtnLoading(true);
+
+    const onSuccess = res => {
+      _saveBtnLoading(false);
+      if (!res.success) {
+        toast(res.message || 'Erro ao salvar.', true);
+        SyncMonitor.update('error', 'Erro ao salvar');
+        return;
+      }
+      // Fecha o modal imediatamente — sem travar a UX
+      _close();
+      toast(isEdit ? 'Registro atualizado.' : 'Registro criado.');
+      SyncMonitor.update('loading', 'Atualizando tabela...');
+      // Reload em background; a página exibe skeleton enquanto aguarda
+      if (typeof onSaved === 'function') onSaved();
+    };
+
+    const onError = err => {
+      _saveBtnLoading(false);
+      toast('Falha: ' + err.message, true);
+      SyncMonitor.update('error', 'Falha na comunicação');
+    };
+
+    if (isEdit) {
+      google.script.run
+        .withSuccessHandler(onSuccess)
+        .withFailureHandler(onError)
+        .routerUpdateRow(sheet, rowNum, dataObj);
+    } else {
+      google.script.run
+        .withSuccessHandler(onSuccess)
+        .withFailureHandler(onError)
+        .routerInsertRow(sheet, dataObj);
+    }
+  }
+
+  // ── API Pública ──────────────────────────────────────────────────────────
+
+  /** Abre o modal em modo criação */
+  function openCreate(config) {
+    _config  = config;
+    _editRow = null;
+    document.getElementById('cm-title').textContent    = 'Novo Registro';
+    document.getElementById('cm-subtitle').textContent = config.pageTitle;
+    _buildForm(config, null);
+    overlay.classList.add('open');
+    const first = formGrid.querySelector('input');
+    if (first) setTimeout(() => first.focus(), 80);
+  }
+
+  /** Abre o modal em modo edição, pré-preenchido */
+  function openEdit(config, rowNumber, rowData) {
+    _config  = config;
+    _editRow = { rowNumber, data: rowData };
+    document.getElementById('cm-title').textContent    = 'Editar Registro';
+    document.getElementById('cm-subtitle').textContent = config.pageTitle;
+    _buildForm(config, rowData);
+    overlay.classList.add('open');
+    const first = formGrid.querySelector('input');
+    if (first) setTimeout(() => first.focus(), 80);
+  }
+
+  /** Abre o dialog de confirmação de exclusão */
+  function confirmDelete(config, rowNumbers, onSuccess) {
+    _config      = config;
+    _deleteRows  = rowNumbers;
+    _deleteCb    = onSuccess;
+    const n = rowNumbers.length;
+    document.getElementById('cm-confirm-msg').textContent =
+      `Deseja remover ${n} registro${n > 1 ? 's' : ''}? Esta ação não pode ser desfeita.`;
+    confirmEl.classList.add('open');
+  }
+
+  /** Expõe o toast para as páginas usarem */
+  function showToast(msg, isError) { toast(msg, isError); }
+
+  // ── Eventos fixos ────────────────────────────────────────────────────────
+  document.getElementById('cm-close').addEventListener('click', _close);
+  document.getElementById('cm-cancel').addEventListener('click', _close);
+  document.getElementById('cm-save').addEventListener('click', _save);
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) _close(); });
+
+  document.getElementById('cm-confirm-cancel').addEventListener('click', () => {
+    confirmEl.classList.remove('open');
+  });
+
+  document.getElementById('cm-confirm-ok').addEventListener('click', () => {
+    confirmEl.classList.remove('open');
+    if (!_config || !_deleteRows.length) return;
+
+    SyncMonitor.update('loading', 'Excluindo...');
+    const t0 = performance.now();
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res.success) { toast(res.message || 'Erro ao excluir.', true); SyncMonitor.update('error', 'Erro'); return; }
+        toast(res.message || 'Registros excluídos.');
+        SyncMonitor.update('success', 'Excluído', { gas: res.metrics.executionTime, cpu: performance.now() - t0 });
+        if (typeof _deleteCb === 'function') _deleteCb();
+      })
+      .withFailureHandler(err => { toast('Falha: ' + err.message, true); SyncMonitor.update('error', 'Erro'); })
+      .routerDeleteRows(_config.sheetName, _deleteRows);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (overlay.classList.contains('open'))   _close();
+    if (confirmEl.classList.contains('open')) confirmEl.classList.remove('open');
+  });
+
+  return { openCreate, openEdit, confirmDelete, showToast };
+
+})();
+</script>

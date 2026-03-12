@@ -1,0 +1,776 @@
+<!--
+  ============================================================================
+  CrudTable.html — Componente Genérico de Tabela CRUD
+  ============================================================================
+  Uso: instanciar via CrudTableManager.create(config) em cada página.
+
+  config = {
+    sheetName:   "NOME_DA_ABA",          // aba no Google Sheets
+    containerId: "id-do-container-html", // div que receberá a tabela
+    pageTitle:   "Nome Exibido",         // usado no modal e toasts
+  }
+  ============================================================================
+-->
+
+<style>
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+.ct-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.ct-search {
+  flex: 1;
+  min-width: 180px;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--c-surface-cont-low);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-sm);
+  padding: 0 12px;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.ct-search:focus-within {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-primary) 12%, transparent);
+}
+
+.ct-search .material-symbols-rounded { font-size: 18px; color: var(--c-outline); flex-shrink: 0; }
+
+.ct-search input {
+  border: none; background: transparent; outline: none;
+  font-size: 0.875rem; color: var(--c-on-surface);
+  font-family: inherit; width: 100%; padding: 9px 0;
+}
+
+.ct-search input::placeholder { color: var(--c-outline); }
+
+.ct-count {
+  font-size: 0.775rem; color: var(--c-outline);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+}
+
+.ct-actions-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-primary) 20%, transparent);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 12px;
+  animation: fadeUp var(--t-fast) both;
+}
+
+.ct-actions-bar.visible { display: flex; }
+.ct-selected-label { font-size: 0.8125rem; font-weight: 600; color: var(--c-primary); flex: 1; }
+
+/* ── Tabela ──────────────────────────────────────────────────────────────── */
+.ct-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--c-outline-variant);
+}
+
+.ct-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  background: var(--c-surface);
+}
+
+.ct-table thead th {
+  background: var(--c-surface-cont-low);
+  color: var(--c-on-surface-variant);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--c-outline-variant);
+  text-align: left;
+  white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--t-fast);
+}
+
+.ct-table thead th:hover { background: var(--c-surface-cont); }
+.ct-table thead th.th-check { width: 40px; cursor: default; }
+.ct-table thead th.th-check:hover { background: var(--c-surface-cont-low); }
+.ct-table thead th.th-actions { width: 48px; cursor: default; text-align: center; }
+.ct-table thead th.th-actions:hover { background: var(--c-surface-cont-low); }
+
+.sort-icon {
+  font-size: 13px; opacity: 0.35; margin-left: 3px;
+  vertical-align: middle;
+  font-variation-settings: 'FILL' 0, 'wght' 300;
+}
+
+th.sort-asc .sort-icon,
+th.sort-desc .sort-icon { opacity: 1; color: var(--c-primary); }
+
+.ct-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--c-outline-variant);
+  color: var(--c-on-surface);
+  vertical-align: middle;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ct-table tbody tr:last-child td { border-bottom: none; }
+.ct-table tbody tr:hover td { background: var(--c-surface-cont-low); }
+.ct-table tbody tr.row-selected td { background: color-mix(in srgb, var(--c-primary) 6%, transparent); }
+
+.td-check { width: 40px; text-align: center; }
+.td-actions { width: 48px; text-align: center; }
+
+/* Checkbox customizado */
+.ct-checkbox {
+  width: 16px; height: 16px;
+  accent-color: var(--c-primary);
+  cursor: pointer;
+}
+
+/* Botão editar inline */
+.btn-row-edit {
+  background: transparent; border: none;
+  border-radius: 50%; width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--c-outline);
+  transition: background-color var(--t-fast), color var(--t-fast);
+  opacity: 0;
+  transition: opacity var(--t-fast), background-color var(--t-fast), color var(--t-fast);
+}
+
+.ct-table tbody tr:hover .btn-row-edit { opacity: 1; }
+.btn-row-edit:hover { background: var(--c-surface-cont-high); color: var(--c-primary); }
+.btn-row-edit .material-symbols-rounded { font-size: 17px; }
+
+/* col tipos */
+.col-mono  { font-family: 'DM Mono', monospace; font-size: 0.775rem; }
+.col-valor { font-family: 'DM Mono', monospace; font-size: 0.775rem; font-weight: 600; color: var(--c-primary); text-align: right; }
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.ct-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+  animation: fadeIn var(--t-fast) both;
+}
+
+.ct-overlay.open { display: flex; }
+
+.ct-modal {
+  background: var(--c-surface);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--el-3);
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp var(--t-normal) both;
+  border: 1px solid var(--c-outline-variant);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ct-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--c-outline-variant);
+  flex-shrink: 0;
+}
+
+.ct-modal-title { font-size: 1rem; font-weight: 600; color: var(--c-on-surface); }
+.ct-modal-subtitle { font-size: 0.75rem; color: var(--c-outline); margin-top: 2px; }
+
+.ct-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.ct-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.ct-form-group { display: flex; flex-direction: column; gap: 6px; }
+
+.ct-form-label {
+  font-size: 0.72rem; font-weight: 600;
+  color: var(--c-on-surface-variant);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.ct-modal-footer {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 10px; padding: 16px 24px;
+  border-top: 1px solid var(--c-outline-variant);
+  flex-shrink: 0;
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.ct-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--c-on-surface); color: var(--c-surface);
+  padding: 10px 20px; border-radius: 20px;
+  font-size: 0.8125rem; font-weight: 500;
+  box-shadow: var(--el-3);
+  z-index: 2000;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+  white-space: nowrap;
+}
+
+.ct-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.ct-toast.toast-error { background: var(--c-error); color: #fff; }
+
+/* ── Confirm delete dialog ───────────────────────────────────────────────── */
+.ct-confirm {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1100;
+  align-items: center; justify-content: center;
+  padding: 24px;
+}
+
+.ct-confirm.open { display: flex; }
+
+.ct-confirm-box {
+  background: var(--c-surface);
+  border-radius: var(--border-radius-lg);
+  padding: 28px;
+  max-width: 380px; width: 100%;
+  box-shadow: var(--el-3);
+  border: 1px solid var(--c-outline-variant);
+  text-align: center;
+}
+
+.ct-confirm-icon .material-symbols-rounded {
+  font-size: 44px;
+  color: var(--c-error);
+  font-variation-settings: 'FILL' 0, 'wght' 300;
+}
+
+.ct-confirm-box h4 { font-size: 1rem; font-weight: 600; margin: 12px 0 6px; }
+.ct-confirm-box p  { font-size: 0.8125rem; color: var(--c-outline); margin-bottom: 20px; }
+.ct-confirm-btns   { display: flex; gap: 10px; justify-content: center; }
+
+@media (max-width: 600px) {
+  .ct-form-grid { grid-template-columns: 1fr; }
+  .ct-modal { max-width: 100%; }
+}
+</style>
+
+<!-- Toast global (único por página) -->
+<div class="ct-toast" id="ct-toast-global"></div>
+
+<script>
+/**
+ * CrudTableManager — Factory que cria instâncias independentes de tabela CRUD.
+ * Cada página chama CrudTableManager.create(config) e recebe um controller isolado.
+ */
+const CrudTableManager = (() => {
+
+  // Padrões de detecção automática de tipo de coluna pelo nome da chave
+  const MONEY_RE  = /valor|preco|custo|budget|forecast|realizado/i;
+  const MONO_RE   = /nfe|cnpj|cpf|data|horas|competencia|codigo|id|ref|numero/i;
+  const STATUS_RE = /status/i;
+
+  const STATUS_MAP = {
+    'paga': 'badge-success', 'concluída': 'badge-success', 'concluida': 'badge-success',
+    'autorizada': 'badge-success', 'ativo': 'badge-success', 'ativa': 'badge-success',
+    'cancelada': 'badge-error', 'inativo': 'badge-error', 'inativa': 'badge-error',
+    'pendente': 'badge-warning', 'em análise': 'badge-info', 'em analise': 'badge-info',
+  };
+
+  function _badgeClass(v) {
+    return STATUS_MAP[(v || '').toLowerCase().trim()] || 'badge-neutral';
+  }
+
+  function _esc(v) {
+    return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _fmtMoeda(v) {
+    const n = parseFloat(String(v).replace(',', '.'));
+    return isNaN(n) ? _esc(String(v)) : n.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  }
+
+  function _uid() {
+    return 'ct_' + Math.random().toString(36).slice(2, 9);
+  }
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  let _toastTimer = null;
+  function _toast(msg, isError = false) {
+    const el = document.getElementById('ct-toast-global');
+    if (!el) return;
+    clearTimeout(_toastTimer);
+    el.textContent = msg;
+    el.className   = 'ct-toast' + (isError ? ' toast-error' : '');
+    el.classList.add('show');
+    _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  // ── Factory ──────────────────────────────────────────────────────────────
+  function create(config) {
+    const { sheetName, containerId, pageTitle } = config;
+    const id = _uid(); // prefixo único para IDs internos
+
+    let _data     = [];
+    let _headers  = [];
+    let _labels   = {};
+    let _loaded   = false;
+    let _sortCol  = null;
+    let _sortDir  = 'asc';
+    let _editRow  = null; // { rowNumber, data } — null = modo criar
+
+    // ── Montar HTML estrutural no container ─────────────────────────────
+    const container = document.getElementById(containerId);
+    if (!container) { console.error('CrudTable: container #' + containerId + ' não encontrado.'); return; }
+
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3>${_esc(pageTitle)}</h3>
+            <p class="card-subtitle">Dados sincronizados com a planilha</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn-icon" id="${id}-refresh" title="Atualizar">
+              <span class="material-symbols-rounded">refresh</span>
+            </button>
+            <button class="btn-filled" id="${id}-new">
+              <span class="material-symbols-rounded" style="font-size:17px">add</span>
+              Novo Registro
+            </button>
+          </div>
+        </div>
+
+        <div class="ct-toolbar">
+          <div class="ct-search">
+            <span class="material-symbols-rounded">search</span>
+            <input id="${id}-filter" type="text" placeholder="Filtrar qualquer campo...">
+          </div>
+          <span id="${id}-count" class="ct-count">— registros</span>
+        </div>
+
+        <div class="ct-actions-bar" id="${id}-actions-bar">
+          <span class="ct-selected-label" id="${id}-sel-label">0 selecionados</span>
+          <button class="btn-outlined" id="${id}-deselect">
+            <span class="material-symbols-rounded" style="font-size:16px">close</span>
+            Limpar seleção
+          </button>
+          <button class="btn-filled" id="${id}-delete-sel" style="background:var(--c-error)">
+            <span class="material-symbols-rounded" style="font-size:16px">delete</span>
+            Excluir selecionados
+          </button>
+        </div>
+
+        <div class="ct-table-wrap">
+          <table class="ct-table">
+            <thead><tr id="${id}-thead"></tr></thead>
+            <tbody id="${id}-tbody">
+              <tr><td style="padding:32px;text-align:center;color:var(--c-outline)">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal criar/editar -->
+      <div class="ct-overlay" id="${id}-overlay">
+        <div class="ct-modal">
+          <div class="ct-modal-header">
+            <div>
+              <div class="ct-modal-title" id="${id}-modal-title">Novo Registro</div>
+              <div class="ct-modal-subtitle" id="${id}-modal-sub">${_esc(pageTitle)}</div>
+            </div>
+            <button class="btn-icon" id="${id}-modal-close">
+              <span class="material-symbols-rounded">close</span>
+            </button>
+          </div>
+          <div class="ct-modal-body">
+            <div class="ct-form-grid" id="${id}-form-grid"></div>
+          </div>
+          <div class="ct-modal-footer">
+            <button class="btn-outlined" id="${id}-modal-cancel">Cancelar</button>
+            <button class="btn-filled"   id="${id}-modal-save">
+              <span class="material-symbols-rounded" style="font-size:16px">save</span>
+              Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirm delete -->
+      <div class="ct-confirm" id="${id}-confirm">
+        <div class="ct-confirm-box">
+          <div class="ct-confirm-icon"><span class="material-symbols-rounded">delete_forever</span></div>
+          <h4>Confirmar exclusão</h4>
+          <p id="${id}-confirm-msg">Deseja remover os registros selecionados? Esta ação não pode ser desfeita.</p>
+          <div class="ct-confirm-btns">
+            <button class="btn-outlined" id="${id}-confirm-cancel">Cancelar</button>
+            <button class="btn-filled"   id="${id}-confirm-ok" style="background:var(--c-error)">
+              <span class="material-symbols-rounded" style="font-size:16px">delete</span>
+              Excluir
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // ── Referências ─────────────────────────────────────────────────────
+    const $ = s => document.getElementById(s);
+    const thead      = $(id+'-thead');
+    const tbody      = $(id+'-tbody');
+    const actionsBar = $(id+'-actions-bar');
+    const selLabel   = $(id+'-sel-label');
+    const countEl    = $(id+'-count');
+    const overlay    = $(id+'-overlay');
+    const formGrid   = $(id+'-form-grid');
+    const confirmEl  = $(id+'-confirm');
+
+    // ── Helpers internos ─────────────────────────────────────────────────
+    function _checkedRows() {
+      return [...tbody.querySelectorAll('input.ct-checkbox:checked')]
+        .map(cb => parseInt(cb.dataset.row));
+    }
+
+    function _updateActionsBar() {
+      const checked = _checkedRows();
+      if (checked.length > 0) {
+        actionsBar.classList.add('visible');
+        selLabel.textContent = checked.length + ' selecionado' + (checked.length > 1 ? 's' : '');
+      } else {
+        actionsBar.classList.remove('visible');
+      }
+    }
+
+    function _colClass(key) {
+      if (MONEY_RE.test(key))  return 'col-valor';
+      if (MONO_RE.test(key))   return 'col-mono';
+      return '';
+    }
+
+    function _renderCell(key, raw) {
+      const val = (raw !== null && raw !== undefined && raw !== '') ? raw : null;
+      const dash = '<span style="opacity:.35">—</span>';
+      if (val === null) {
+        return STATUS_RE.test(key) ? `<span class="badge badge-neutral">—</span>` : dash;
+      }
+      if (STATUS_RE.test(key)) {
+        return `<span class="badge ${_badgeClass(String(val))}">${_esc(String(val))}</span>`;
+      }
+      if (MONEY_RE.test(key))  return _fmtMoeda(val);
+      return _esc(String(val));
+    }
+
+    // ── LOAD ─────────────────────────────────────────────────────────────
+    function load() {
+      if (_loaded) return;
+      SyncMonitor.update('loading', 'Carregando ' + pageTitle + '...');
+      const t0 = performance.now();
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success) { SyncMonitor.update('error', res.message); return; }
+          _headers = res.headers || [];
+          _labels  = res.labels  || {};
+          _data    = res.data    || [];
+          _loaded  = true;
+          buildHeader();
+          renderTable(_data);
+          SyncMonitor.update('success', pageTitle + ' carregado', {
+            gas: res.metrics.executionTime,
+            cpu: performance.now() - t0
+          });
+        })
+        .withFailureHandler(err => {
+          SyncMonitor.update('error', 'Falha na comunicação');
+          console.error(err);
+        })
+        .routerGetSheet(sheetName);
+    }
+
+    function reload() {
+      _loaded = false; _data = []; _headers = []; _labels = {};
+      _sortCol = null; _sortDir = 'asc';
+      load();
+    }
+
+    // ── CABEÇALHO ─────────────────────────────────────────────────────────
+    function buildHeader() {
+      // Checkbox select-all + colunas de dados + coluna de ações
+      thead.innerHTML = `
+        <th class="th-check">
+          <input type="checkbox" class="ct-checkbox" id="${id}-check-all">
+        </th>
+        ${_headers.map(key => `
+          <th data-key="${key}" class="${key === _sortCol ? 'sort-' + _sortDir : ''}">
+            ${_esc(_labels[key] || key)}
+            <span class="material-symbols-rounded sort-icon">
+              ${key === _sortCol ? (_sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+            </span>
+          </th>
+        `).join('')}
+        <th class="th-actions"></th>
+      `;
+
+      // Ordenação por coluna
+      thead.querySelectorAll('th[data-key]').forEach(th => {
+        th.addEventListener('click', () => sortBy(th.dataset.key));
+      });
+
+      // Select all
+      $(id+'-check-all').addEventListener('change', e => {
+        tbody.querySelectorAll('input.ct-checkbox').forEach(cb => {
+          cb.checked = e.target.checked;
+          cb.closest('tr').classList.toggle('row-selected', e.target.checked);
+        });
+        _updateActionsBar();
+      });
+    }
+
+    // ── RENDERIZAÇÃO ──────────────────────────────────────────────────────
+    function renderTable(data) {
+      if (countEl) countEl.textContent = data.length + ' registros';
+      actionsBar.classList.remove('visible');
+
+      if (!data.length) {
+        const cols = _headers.length + 2;
+        tbody.innerHTML = `<tr><td colspan="${cols}" style="padding:40px;text-align:center;color:var(--c-outline)">Nenhum registro encontrado.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map((row, idx) => {
+        const rn = row.__rowNumber || (idx + 2); // rowNumber real na planilha
+        const cells = _headers.map(key => {
+          const cls = _colClass(key);
+          return `<td${cls ? ` class="${cls}"` : ''}>${_renderCell(key, row[key])}</td>`;
+        }).join('');
+
+        return `<tr data-row="${rn}">
+          <td class="td-check">
+            <input type="checkbox" class="ct-checkbox" data-row="${rn}">
+          </td>
+          ${cells}
+          <td class="td-actions">
+            <button class="btn-row-edit" data-row="${rn}" title="Editar">
+              <span class="material-symbols-rounded">edit</span>
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Eventos de checkbox por linha
+      tbody.querySelectorAll('input.ct-checkbox').forEach(cb => {
+        cb.addEventListener('change', e => {
+          e.target.closest('tr').classList.toggle('row-selected', e.target.checked);
+          _updateActionsBar();
+        });
+      });
+
+      // Eventos de editar por linha
+      tbody.querySelectorAll('.btn-row-edit').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const rn  = parseInt(btn.dataset.row);
+          const row = _data.find((_, i) => (_.__rowNumber || i + 2) === rn) || _data[rn - 2];
+          openModal(rn, row);
+        });
+      });
+    }
+
+    // ── ORDENAÇÃO ─────────────────────────────────────────────────────────
+    function sortBy(key) {
+      _sortDir = (_sortCol === key && _sortDir === 'asc') ? 'desc' : 'asc';
+      _sortCol = key;
+      buildHeader();
+      const query  = $(id+'-filter').value;
+      const source = applyFilter(query, false);
+      const sorted = [...source].sort((a, b) => {
+        const va = String(a[key] || ''), vb = String(b[key] || '');
+        return _sortDir === 'asc' ? va.localeCompare(vb,'pt-BR') : vb.localeCompare(va,'pt-BR');
+      });
+      renderTable(sorted);
+    }
+
+    // ── FILTRO ────────────────────────────────────────────────────────────
+    function applyFilter(query, doRender = true) {
+      if (!query) { if (doRender) renderTable(_data); return _data; }
+      const q        = query.toLowerCase();
+      const filtered = _data.filter(row =>
+        _headers.some(k => String(row[k] || '').toLowerCase().includes(q))
+      );
+      if (doRender) renderTable(filtered);
+      return filtered;
+    }
+
+    // ── MODAL ─────────────────────────────────────────────────────────────
+    function openModal(rowNumber = null, rowData = null) {
+      _editRow = rowNumber ? { rowNumber, data: rowData } : null;
+
+      $(id+'-modal-title').textContent = rowNumber ? 'Editar Registro' : 'Novo Registro';
+      $(id+'-modal-sub').textContent   = pageTitle;
+
+      // Gera campos do formulário dinamicamente
+      formGrid.innerHTML = _headers.map(key => `
+        <div class="ct-form-group">
+          <label class="ct-form-label">${_esc(_labels[key] || key)}</label>
+          <input
+            class="input-field"
+            data-key="${key}"
+            type="text"
+            placeholder="${_esc(_labels[key] || key)}"
+            value="${rowData ? _esc(String(rowData[key] ?? '')) : ''}"
+          >
+        </div>
+      `).join('');
+
+      overlay.classList.add('open');
+      // Foca no primeiro campo
+      const firstInput = formGrid.querySelector('input');
+      if (firstInput) setTimeout(() => firstInput.focus(), 100);
+    }
+
+    function closeModal() {
+      overlay.classList.remove('open');
+      _editRow = null;
+    }
+
+    function saveModal() {
+      const dataObj = {};
+      formGrid.querySelectorAll('input[data-key]').forEach(inp => {
+        dataObj[inp.dataset.key] = inp.value.trim();
+      });
+
+      const saveBtn = $(id+'-modal-save');
+      saveBtn.disabled = true;
+      SyncMonitor.update('loading', 'Salvando...');
+      const t0 = performance.now();
+
+      if (_editRow) {
+        // EDITAR
+        google.script.run
+          .withSuccessHandler(res => {
+            saveBtn.disabled = false;
+            if (!res.success) { _toast(res.message || 'Erro ao salvar', true); SyncMonitor.update('error', 'Erro'); return; }
+            _toast('Registro atualizado com sucesso.');
+            SyncMonitor.update('success', 'Salvo', { gas: res.metrics.executionTime, cpu: performance.now() - t0 });
+            closeModal();
+            reload();
+          })
+          .withFailureHandler(err => { saveBtn.disabled = false; _toast('Falha: ' + err.message, true); SyncMonitor.update('error', 'Erro'); })
+          .routerUpdateRow(sheetName, _editRow.rowNumber, dataObj);
+      } else {
+        // CRIAR
+        google.script.run
+          .withSuccessHandler(res => {
+            saveBtn.disabled = false;
+            if (!res.success) { _toast(res.message || 'Erro ao salvar', true); SyncMonitor.update('error', 'Erro'); return; }
+            _toast('Registro criado com sucesso.');
+            SyncMonitor.update('success', 'Salvo', { gas: res.metrics.executionTime, cpu: performance.now() - t0 });
+            closeModal();
+            reload();
+          })
+          .withFailureHandler(err => { saveBtn.disabled = false; _toast('Falha: ' + err.message, true); SyncMonitor.update('error', 'Erro'); })
+          .routerInsertRow(sheetName, dataObj);
+      }
+    }
+
+    // ── DELETE ────────────────────────────────────────────────────────────
+    function confirmDelete() {
+      const rows = _checkedRows();
+      if (!rows.length) return;
+      $(id+'-confirm-msg').textContent =
+        `Deseja remover ${rows.length} registro${rows.length > 1 ? 's' : ''}? Esta ação não pode ser desfeita.`;
+      confirmEl.classList.add('open');
+    }
+
+    function executeDelete() {
+      const rows = _checkedRows();
+      confirmEl.classList.remove('open');
+      SyncMonitor.update('loading', 'Excluindo...');
+      const t0 = performance.now();
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success) { _toast(res.message || 'Erro ao excluir', true); SyncMonitor.update('error', 'Erro'); return; }
+          _toast(res.message || 'Registros excluídos.');
+          SyncMonitor.update('success', 'Excluído', { gas: res.metrics.executionTime, cpu: performance.now() - t0 });
+          reload();
+        })
+        .withFailureHandler(err => { _toast('Falha: ' + err.message, true); SyncMonitor.update('error', 'Erro'); })
+        .routerDeleteRows(sheetName, rows);
+    }
+
+    // ── EVENTOS ───────────────────────────────────────────────────────────
+    $(id+'-refresh').addEventListener('click', reload);
+    $(id+'-new').addEventListener('click', () => openModal());
+    $(id+'-modal-close').addEventListener('click', closeModal);
+    $(id+'-modal-cancel').addEventListener('click', closeModal);
+    $(id+'-modal-save').addEventListener('click', saveModal);
+    $(id+'-deselect').addEventListener('click', () => {
+      tbody.querySelectorAll('input.ct-checkbox').forEach(cb => {
+        cb.checked = false;
+        cb.closest('tr').classList.remove('row-selected');
+      });
+      const all = $(id+'-check-all');
+      if (all) all.checked = false;
+      actionsBar.classList.remove('visible');
+    });
+    $(id+'-delete-sel').addEventListener('click', confirmDelete);
+    $(id+'-confirm-cancel').addEventListener('click', () => confirmEl.classList.remove('open'));
+    $(id+'-confirm-ok').addEventListener('click', executeDelete);
+
+    // Fechar overlay clicando fora do modal
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+    // Filtro com debounce
+    let _deb;
+    $(id+'-filter').addEventListener('input', e => {
+      clearTimeout(_deb);
+      _deb = setTimeout(() => applyFilter(e.target.value), 200);
+    });
+
+    // ESC fecha modal
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if (overlay.classList.contains('open'))  closeModal();
+        if (confirmEl.classList.contains('open')) confirmEl.classList.remove('open');
+      }
+    });
+
+    return { load, reload };
+  }
+
+  return { create };
+})();
+</script>

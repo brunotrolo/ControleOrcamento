@@ -1,0 +1,131 @@
+<aside id="sidebar" class="sidebar collapsed">
+
+  <div class="sidebar-header">
+    <div class="logo-area">
+      <span class="material-symbols-rounded icon-logo">payments</span>
+      <span class="logo-text">BudgetDev</span>
+    </div>
+    <button id="btn-toggle-sidebar" class="btn-icon" title="Recolher menu">
+      <span class="material-symbols-rounded">menu_open</span>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav" role="navigation" aria-label="Menu principal">
+
+    <div class="nav-item active"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-dashboard','Visão Geral')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-dashboard','Visão Geral')">
+      <span class="material-symbols-rounded">dashboard</span>
+      <span class="nav-label">Dashboard</span>
+    </div>
+
+    <div class="nav-item"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-notas-fiscais','Notas Fiscais')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-notas-fiscais','Notas Fiscais')">
+      <span class="material-symbols-rounded">receipt_long</span>
+      <span class="nav-label">Notas Fiscais</span>
+    </div>
+
+    <div class="nav-item"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-fornecedor','Fornecedores')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-fornecedor','Fornecedores')">
+      <span class="material-symbols-rounded">storefront</span>
+      <span class="nav-label">Fornecedores</span>
+    </div>
+
+    <div class="nav-item"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-nota_fiscal_analitico','Notas Fiscais Analítico')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-nota_fiscal_analitico','Notas Fiscais Analítico')">
+      <span class="material-symbols-rounded">receipt_long</span>
+      <span class="nav-label">NF Analítico</span>
+    </div>
+
+    <div class="nav-item"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-prestador','Prestadores')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-prestador','Prestadores')">
+      <span class="material-symbols-rounded">person</span>
+      <span class="nav-label">Prestadores</span>
+    </div>
+
+    <div class="nav-item"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-forecast','Forecast')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-forecast','Forecast')">
+      <span class="material-symbols-rounded">trending_up</span>
+      <span class="nav-label">Forecast</span>
+    </div>
+
+    <div class="nav-item"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-importar-nota','Importar Nota Fiscal')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-importar-nota','Importar Nota Fiscal')">
+      <span class="material-symbols-rounded">folder_open</span>
+      <span class="nav-label">Importar Nota</span>
+    </div>
+
+    <div class="nav-item"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-histograma','Histograma')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-histograma','Histograma')">
+      <span class="material-symbols-rounded">bar_chart</span>
+      <span class="nav-label">Histograma</span>
+    </div>
+
+    <div class="nav-item"
+         role="button" tabindex="0"
+         onclick="handleNav(this,'view-debug','Debug')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-debug','Debug')">
+      <span class="material-symbols-rounded">bug_report</span>
+      <span class="nav-label">Debug</span>
+    </div>
+
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="status-wrapper">
+      <div id="status-dot" class="dot pulse-green"></div>
+      <span class="status-label">Sistema Online</span>
+    </div>
+    <div class="version-tag">v2.0.0</div>
+  </div>
+
+</aside>
+
+<script>
+(function () {
+  const sidebar = document.getElementById('sidebar');
+  const btn     = document.getElementById('btn-toggle-sidebar');
+
+  // Restaura estado do menu
+  const isCollapsed = localStorage.getItem('bd-sidebar') !== 'expanded';
+  if (!isCollapsed) {
+    sidebar.classList.remove('collapsed');
+    updateToggleIcon(false);
+  }
+
+  btn.addEventListener('click', () => {
+    const willCollapse = !sidebar.classList.contains('collapsed');
+    sidebar.classList.toggle('collapsed');
+    localStorage.setItem('bd-sidebar', willCollapse ? 'collapsed' : 'expanded');
+    updateToggleIcon(willCollapse);
+  });
+
+  function updateToggleIcon(collapsed) {
+    const icon = btn.querySelector('.material-symbols-rounded');
+    icon.textContent = collapsed ? 'side_navigation' : 'menu_open';
+    btn.title        = collapsed ? 'Expandir menu' : 'Recolher menu';
+  }
+})();
+
+function handleNav(el, viewId, title) {
+  const prev = document.querySelector('.nav-item.active');
+  if (prev) prev.classList.remove('active');
+  el.classList.add('active');
+  if (typeof navigateTo === 'function') navigateTo(viewId, title);
+}
+</script>

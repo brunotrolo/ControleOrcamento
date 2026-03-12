@@ -1,0 +1,246 @@
+<style>
+.debug-console {
+  font-family: 'DM Mono', monospace;
+  background: #0D1117;
+  color: #C9D1D9;
+  border-radius: var(--border-radius-md);
+  border: 1px solid #30363D;
+  padding: 20px;
+  min-height: 280px;
+  max-height: 480px;
+  overflow-y: auto;
+  font-size: 0.775rem;
+  line-height: 1.7;
+}
+
+body.dark-theme .debug-console {
+  background: #0A0C10;
+  border-color: #21262D;
+}
+
+.log-line {
+  display: flex;
+  gap: 10px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.log-line:last-child { border-bottom: none; }
+
+.log-ts { color: #484F58; flex-shrink: 0; }
+
+.log-info    { color: #79C0FF; }
+.log-success { color: #56D364; }
+.log-error   { color: #F85149; }
+.log-warn    { color: #E3B341; }
+.log-muted   { color: #484F58; font-style: italic; }
+
+.debug-console::-webkit-scrollbar { width: 5px; }
+.debug-console::-webkit-scrollbar-track { background: transparent; }
+.debug-console::-webkit-scrollbar-thumb { background: #30363D; border-radius: 3px; }
+
+.debug-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+</style>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3>Debug & Diagnóstico</h3>
+      <p class="card-subtitle">Ferramentas de integração e validação</p>
+    </div>
+    <div class="debug-actions">
+      <button class="btn-outlined" id="btn-clear-debug" title="Limpar console">
+        <span class="material-symbols-rounded" style="font-size:16px">delete_sweep</span>
+        Limpar
+      </button>
+      <button class="btn-outlined" id="btn-invalidar-cache" title="Limpar cache de colunas">
+        <span class="material-symbols-rounded" style="font-size:16px">cached</span>
+        Invalidar Cache
+      </button>
+      <button class="btn-filled" id="btn-run-debug">
+        <span class="material-symbols-rounded" style="font-size:16px">play_circle</span>
+        Rodar Testes
+      </button>
+    </div>
+  </div>
+
+  <div id="debug-console" class="debug-console">
+    <div class="log-line">
+      <span class="log-ts">--:--:--</span>
+      <span class="log-muted">» Aguardando início dos testes...</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const DebugManager = (() => {
+  const _console = () => document.getElementById('debug-console');
+
+  function log(msg, type = 'info') {
+    const el   = _console();
+    const ts   = new Date().toLocaleTimeString('pt-BR');
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `<span class="log-ts">${ts}</span><span class="log-${type}">${msg}</span>`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function clear() {
+    _console().innerHTML = '';
+    log('Console limpo.', 'muted');
+  }
+
+  function run() {
+    clear();
+    log('Iniciando checkup de integração...', 'info');
+    log('─────────────────────────────────', 'muted');
+    log('Teste 1 › Conexão e mapeamento de colunas', 'info');
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res.success) { log('✗ Backend: ' + (res.message || 'Erro desconhecido'), 'error'); return; }
+        log('✓ Conexão com Apps Script: OK', 'success');
+        log('✓ Acesso à planilha: OK', 'success');
+        log('  ID: ' + res.debugInfo.spreadsheetId, 'muted');
+        log('  Abas: ' + res.debugInfo.abas.join(', '), 'info');
+        log('  Colunas mapeadas em NOTA_FISCAL: ' + res.debugInfo.totalColunas, 'info');
+        log('─────────────────────────────────', 'muted');
+        runTeste2();
+      })
+      .withFailureHandler(err => {
+        log('✗ FALHA CRÍTICA: ' + err.message, 'error');
+      })
+      .diagnosticoGeral();
+  }
+
+  function invalidarCache() {
+    log('Invalidando cache de cabeçalhos...', 'info');
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res.success) { log('✗ ' + res.message, 'error'); return; }
+        log('✓ ' + res.message, 'success');
+        log('Recarregue as páginas para ver as colunas atualizadas.', 'muted');
+      })
+      .withFailureHandler(err => log('✗ ' + err.message, 'error'))
+      .routerInvalidarCache();
+  }
+
+  function runTeste2() {
+    log('Teste 2 › Integridade dos dados NOTA_FISCAL (amostra)', 'info');
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res.success) { log('✗ ' + res.message, 'error'); return; }
+        const data = res.data || [];
+        if (data.length === 0) { log('⚠ Planilha vazia.', 'warn'); return; }
+        const sample = data[0];
+        log('✓ ' + data.length + ' registros em NOTA_FISCAL', 'success');
+        log('  Amostra[0] status_nfe:  "' + (sample.status_nfe  || '—') + '"', 'info');
+        log('  Amostra[0] competencia: "' + (sample.competencia || '—') + '"', 'info');
+        log('  Amostra[0] total_nfe:   "' + (sample.total_nfe   || '—') + '"', 'info');
+        log('  Amostra[0] nome_fantasia:"'+ (sample.nome_fantasia|| '—') + '"', 'info');
+        log('  Amostra[0] iniciativa:  "' + (sample.iniciativa  || '—') + '"', 'info');
+        log('  __rowNumber:             ' + (sample.__rowNumber  || '—'), 'muted');
+        log('─────────────────────────────────', 'muted');
+        runTeste3();
+      })
+      .withFailureHandler(err => log('✗ Falha no Teste 2: ' + err.message, 'error'))
+      .routerGetNotas();
+  }
+
+  function runTeste3() {
+    log('Teste 3 › Dashboard — routerGetDashboardData()', 'info');
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res.success) { log('✗ Dashboard: ' + (res.message || 'Erro'), 'error'); return; }
+
+        const k    = res.kpis   || {};
+        const pm   = res.por_mes  || {};
+        const pi   = res.por_ini  || {};
+        const pf   = res.por_forn || {};
+        const pp   = res.por_prof || {};
+        const prox = res.proximos || [];
+
+        // KPIs
+        log('✓ KPIs recebidos:', 'success');
+        log('  total_auth:   R$ ' + (k.total_auth   || 0).toLocaleString('pt-BR', {minimumFractionDigits:2}), 'info');
+        log('  total_canc:   R$ ' + (k.total_canc   || 0).toLocaleString('pt-BR', {minimumFractionDigits:2}), 'info');
+        log('  nfs_auth:     '    + (k.nfs_auth     || 0), 'info');
+        log('  vence_30_qtd: '    + (k.vence_30_qtd || 0), 'info');
+        log('  vencidas_qtd: '    + (k.vencidas_qtd || 0), 'info');
+        log('  ativos:       '    + (k.ativos        || 0), 'info');
+
+        // por_mes
+        const meses = Object.keys(pm).sort();
+        if (meses.length === 0) {
+          log('✗ por_mes VAZIO — verificar mesKey() no Router.gs', 'error');
+          log('  Dica: competencia deve chegar como "MM/yyyy" (ex: "01/2025")', 'warn');
+        } else {
+          log('✓ por_mes: ' + meses.length + ' meses — ' + meses.join(', '), 'success');
+          const priMes = pm[meses[0]];
+          log('  Primeiro mês [' + meses[0] + ']: auth=' + priMes.auth + ' canc=' + priMes.canc + ' qtd=' + priMes.qtd, 'info');
+        }
+
+        // por_ini
+        const inis = Object.keys(pi);
+        if (inis.length === 0) {
+          log('✗ por_ini VAZIO', 'error');
+        } else {
+          log('✓ por_ini: ' + inis.length + ' iniciativas', 'success');
+          inis.forEach(k2 => log('  ' + k2 + ': R$ ' + (pi[k2].val||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + ' (' + (pi[k2].qtd||0) + ' NFs)', 'info'));
+        }
+
+        // por_forn
+        const forns = Object.keys(pf);
+        if (forns.length === 0) {
+          log('✗ por_forn VAZIO', 'error');
+        } else {
+          log('✓ por_forn: ' + forns.length + ' fornecedores', 'success');
+          forns.forEach(f => log('  ' + f + ': R$ ' + (pf[f].val||0).toLocaleString('pt-BR',{minimumFractionDigits:2}), 'info'));
+        }
+
+        // por_prof
+        log('✓ por_prof: ' + Object.keys(pp).length + ' profissionais (top 15)', 'success');
+
+        // proximos
+        log('✓ proximos: ' + prox.length + ' vencimentos', 'success');
+        if (prox.length > 0) {
+          const p0 = prox[0];
+          log('  Primeiro: ' + p0.fornecedor + ' | ' + p0.iniciativa + ' | vence ' + p0.data + ' (dias: ' + p0.dias + ')', 'info');
+        }
+
+        log('─────────────────────────────────', 'muted');
+
+        // Verifica SVG
+        log('Teste 4 › SVG do gráfico de evolução', 'info');
+        try {
+          const W = 600, H = 220, PAD_L = 68, PAD_R = 16, PAD_T = 16, PAD_B = 48;
+          const chartH = H - PAD_T - PAD_B;
+          const vals = meses.map(m => pm[m].auth || 0);
+          const max  = Math.max(...vals, 1);
+          const bh   = (vals[0] / max) * chartH;
+          log('✓ SVG calc OK — bh[0]=' + bh.toFixed(1) + ' max=' + max.toFixed(0), 'success');
+        } catch(e) {
+          log('✗ SVG calc erro: ' + e.message, 'error');
+        }
+
+        log('─────────────────────────────────', 'muted');
+        log('✓ Diagnóstico completo.', 'success');
+      })
+      .withFailureHandler(err => log('✗ Falha no Teste 3: ' + err.message, 'error'))
+      .routerGetDashboardData();
+  }
+
+  return { run, clear, invalidarCache };
+})();
+
+document.getElementById('btn-run-debug').addEventListener('click',       () => DebugManager.run());
+document.getElementById('btn-clear-debug').addEventListener('click',     () => DebugManager.clear());
+document.getElementById('btn-invalidar-cache').addEventListener('click', () => DebugManager.invalidarCache());
+</script>
