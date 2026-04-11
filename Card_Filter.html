@@ -1,0 +1,436 @@
+<!--
+  Card_Filter.html - Multi Picklist
+  Campos: Status, Fornecedor, Competência (agrupada), Iniciativa
+-->
+
+<style>
+.card-filter {
+  background: var(--c-surface);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-lg);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--c-outline-variant);
+}
+
+.filter-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-on-surface);
+  flex: 1;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-filter {
+  background: transparent;
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-md);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--c-primary);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-filter:hover {
+  background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.picklist-wrapper {
+  position: relative;
+}
+
+.picklist-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-on-surface-variant);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.picklist-button {
+  width: 100%;
+  background: var(--c-surface-cont-low);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-md);
+  padding: 10px 12px;
+  font-size: 0.8125rem;
+  color: var(--c-on-surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: all var(--t-fast);
+}
+
+.picklist-button:hover {
+  background: var(--c-surface-cont);
+}
+
+.picklist-button.open {
+  border-color: var(--c-primary);
+  background: var(--c-surface);
+}
+
+.picklist-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.picklist-badge {
+  background: var(--c-primary);
+  color: var(--c-on-primary);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.picklist-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--c-surface);
+  border: 1px solid var(--c-outline-variant);
+  border-top: none;
+  border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
+  margin-top: -1px;
+  z-index: 1000;
+  max-height: 280px;
+  overflow-y: auto;
+  box-shadow: var(--el-2);
+  display: none;
+}
+
+.picklist-dropdown.open {
+  display: flex;
+  flex-direction: column;
+}
+
+.picklist-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background var(--t-fast);
+  border-bottom: 1px solid var(--c-outline-variant);
+  user-select: none;
+}
+
+.picklist-option:last-child {
+  border-bottom: none;
+}
+
+.picklist-option:hover {
+  background: var(--c-surface-cont-low);
+}
+
+.picklist-option input[type="checkbox"] {
+  accent-color: var(--c-primary);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.picklist-option label {
+  flex: 1;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+.year-group {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-outline-variant);
+}
+
+.year-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--c-primary);
+  padding: 4px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.picklist-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+
+.picklist-dropdown::-webkit-scrollbar-thumb {
+  background: var(--c-outline-variant);
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<div class="card-filter">
+  <div class="filter-header">
+    <span class="material-symbols-rounded">filter_alt</span>
+    <span class="filter-title">Filtros</span>
+    <div class="filter-actions">
+      <button class="btn-filter" id="btn-refresh">
+        <span class="material-symbols-rounded">refresh</span>
+        Atualizar
+      </button>
+      <button class="btn-filter" id="btn-clear">
+        <span class="material-symbols-rounded">close</span>
+        Limpar
+      </button>
+    </div>
+  </div>
+  <div class="filter-grid" id="filter-grid">
+    <div style="padding:16px;color:var(--c-outline);">Carregando...</div>
+  </div>
+</div>
+
+<script>
+window.CardFilter = (function() {
+
+  var FIELDS = [
+    { key: 'status_nfe', label: 'Status' },
+    { key: 'nome_fantasia', label: 'Fornecedor' },
+    { key: 'competencia', label: 'Competência', groupByYear: true },
+    { key: 'iniciativa', label: 'Iniciativa' },
+  ];
+
+  var _values = {};
+  var _filters = {};
+  var _callback = null;
+
+  function _esc(v) {
+    return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _emit() {
+    if (typeof _callback === 'function') _callback(_filters);
+  }
+
+  function _groupByYear(items) {
+    var grouped = {};
+    var meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+    
+    (items || []).forEach(function(item) {
+      var m = String(item).match(/(\d{2})\/(\d{4})/);
+      if (m) {
+        var mes = parseInt(m[1]);
+        var ano = m[2];
+        var mesNome = meses[mes - 1] || m[1];
+        var formatted = mesNome + '/' + ano;
+        
+        if (!grouped[ano]) grouped[ano] = [];
+        grouped[ano].push({ formatted: formatted, mes: mes, original: item });
+      }
+    });
+    
+    var sorted = {};
+    Object.keys(grouped).sort().reverse().forEach(function(ano) {
+      sorted[ano] = grouped[ano].sort(function(a, b) {
+        return b.mes - a.mes;
+      }).map(function(item) { return item.formatted; });
+    });
+    return sorted;
+  }
+
+  function _renderPiclist(field) {
+    var vals = _values[field.key] || [];
+    var sel = _filters[field.key] || [];
+    var html = '<div class="picklist-wrapper">' +
+      '<label class="picklist-label">' + _esc(field.label) + '</label>' +
+      '<button class="picklist-button" data-field="' + _esc(field.key) + '">' +
+      '<span class="picklist-text">' + (sel.length === 0 ? 'Selecione...' : sel.length + ' selecionado' + (sel.length > 1 ? 's' : '')) + '</span>';
+    
+    if (sel.length > 0) {
+      html += '<span class="picklist-badge">' + sel.length + '</span>';
+    }
+    
+    html += '<span class="material-symbols-rounded">expand_more</span>' +
+      '</button>' +
+      '<div class="picklist-dropdown" data-field="' + _esc(field.key) + '">';
+
+    if (field.groupByYear && field.key === 'competencia') {
+      var grouped = _groupByYear(vals);
+      Object.keys(grouped).forEach(function(year) {
+        html += '<div class="year-group">' +
+          '<div class="year-label">' + _esc(year) + '</div>';
+        grouped[year].forEach(function(val) {
+          var id = 'cb_' + _esc(field.key) + '_' + _esc(val);
+          var chk = sel.indexOf(val) !== -1;
+          html += '<div class="picklist-option">' +
+            '<input type="checkbox" id="' + id + '" data-field="' + _esc(field.key) + '" value="' + _esc(val) + '"' + (chk ? ' checked' : '') + '>' +
+            '<label for="' + id + '">' + _esc(val) + '</label>' +
+            '</div>';
+        });
+        html += '</div>';
+      });
+    } else {
+      vals.forEach(function(val) {
+        var id = 'cb_' + _esc(field.key) + '_' + _esc(val);
+        var chk = sel.indexOf(val) !== -1;
+        html += '<div class="picklist-option">' +
+          '<input type="checkbox" id="' + id + '" data-field="' + _esc(field.key) + '" value="' + _esc(val) + '"' + (chk ? ' checked' : '') + '>' +
+          '<label for="' + id + '">' + _esc(val) + '</label>' +
+          '</div>';
+      });
+    }
+
+    html += '</div></div>';
+    return html;
+  }
+
+  function _render() {
+    var grid = document.getElementById('filter-grid');
+    if (!grid) return;
+    var html = '';
+    FIELDS.forEach(function(f) { html += _renderPiclist(f); });
+    grid.innerHTML = html;
+
+    document.querySelectorAll('.picklist-button').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var field = btn.dataset.field;
+        var dd = document.querySelector('.picklist-dropdown[data-field="' + field + '"]');
+        var allDd = document.querySelectorAll('.picklist-dropdown');
+        allDd.forEach(function(d) { if (d !== dd) d.classList.remove('open'); });
+        dd.classList.toggle('open');
+        btn.classList.toggle('open');
+      });
+    });
+
+    document.querySelectorAll('.picklist-option input').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var field = cb.dataset.field;
+        var dd = document.querySelector('.picklist-dropdown[data-field="' + field + '"]');
+        var checked = Array.from(dd.querySelectorAll('input:checked')).map(function(c) { return c.value; });
+        _filters[field] = checked;
+        var btn = document.querySelector('.picklist-button[data-field="' + field + '"]');
+        var text = checked.length === 0 ? 'Selecione...' : checked.length + ' selecionado' + (checked.length > 1 ? 's' : '');
+        btn.querySelector('.picklist-text').textContent = text;
+        var badge = btn.querySelector('.picklist-badge');
+        if (checked.length > 0) {
+          if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'picklist-badge';
+            btn.appendChild(badge);
+          }
+          badge.textContent = checked.length;
+        } else if (badge) {
+          badge.remove();
+        }
+        _emit();
+      });
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.picklist-wrapper')) {
+        document.querySelectorAll('.picklist-dropdown').forEach(function(d) { d.classList.remove('open'); });
+        document.querySelectorAll('.picklist-button').forEach(function(b) { b.classList.remove('open'); });
+      }
+    });
+  }
+
+  function load() {
+    var grid = document.getElementById('filter-grid');
+    if (!grid) return;
+    
+    SyncMonitor.update('loading', 'Carregando filtros...');
+    var t0 = performance.now();
+    
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          SyncMonitor.update('error', 'Erro ao carregar filtros');
+          grid.innerHTML = '<div style="padding:16px;color:var(--c-error);">Erro ao carregar filtros</div>';
+          return;
+        }
+        
+        _values = res.filterValues || {};
+        
+        // Validar se valores estão vazios
+        var hasValues = Object.keys(_values).some(function(k) { return _values[k] && _values[k].length > 0; });
+        if (!hasValues) {
+          grid.innerHTML = '<div style="padding:16px;color:var(--c-outline);">Nenhum dado disponível</div>';
+          SyncMonitor.update('warning', 'Nenhum dado para filtrar');
+          return;
+        }
+        
+        _render();
+        SyncMonitor.update('success', 'Filtros carregados', {
+          gas: res.metrics ? res.metrics.executionTime : 0,
+          cpu: performance.now() - t0
+        });
+      })
+      .withFailureHandler(function(err) {
+        SyncMonitor.update('error', 'Falha ao carregar');
+        grid.innerHTML = '<div style="padding:16px;color:var(--c-error);">Falha na comunicação</div>';
+        console.error('CardFilter Error:', err);
+      })
+      .routerGetFilterValues('NOTA_FISCAL', FIELDS.map(function(f) { return f.key; }));
+  }
+
+  function initialize(cb) {
+    _callback = cb;
+    FIELDS.forEach(function(f) { _filters[f.key] = []; });
+    load();
+    document.getElementById('btn-refresh').addEventListener('click', load);
+    document.getElementById('btn-clear').addEventListener('click', function() {
+      document.querySelectorAll('.picklist-option input').forEach(function(cb) { cb.checked = false; });
+      FIELDS.forEach(function(f) { _filters[f.key] = []; });
+      document.querySelectorAll('.picklist-button').forEach(function(btn) {
+        btn.querySelector('.picklist-text').textContent = 'Selecione...';
+        var badge = btn.querySelector('.picklist-badge');
+        if (badge) badge.remove();
+      });
+      _emit();
+    });
+  }
+
+  function cleanup() {
+    _values = {};
+    _filters = {};
+    _callback = null;
+  }
+
+  return { initialize, cleanup };
+})();
+</script>

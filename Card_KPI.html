@@ -1,0 +1,117 @@
+<!--
+  Card_KPI.html - Indicadores Principais
+-->
+
+<style>
+.card-kpi {
+  padding: 0;
+}
+
+.kpi-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-on-surface-variant);
+  padding: 0 4px 16px 4px;
+  margin-bottom: 0;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.kpi-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-lg);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--kpi-accent, var(--c-primary));
+}
+
+.kpi-label {
+  font-size: 0.685rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-outline);
+}
+
+.kpi-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--c-on-surface);
+  font-family: 'DM Mono', monospace;
+  line-height: 1.1;
+}
+
+.kpi-sub {
+  font-size: 0.72rem;
+  color: var(--c-outline);
+}
+</style>
+
+<div class="card-kpi">
+  <h3 class="kpi-title">Indicadores Principais</h3>
+  <div class="kpi-grid" id="kpi-grid">
+    <div style="padding:16px;text-align:center;color:var(--c-outline);">Carregando...</div>
+  </div>
+</div>
+
+<script>
+window.CardKPI = (function() {
+
+  function _esc(v) {
+    return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function update(configs) {
+    var grid = document.getElementById('kpi-grid');
+    if (!grid) return;
+    
+    if (!configs || !Array.isArray(configs) || configs.length === 0) {
+      grid.innerHTML = '<div style="padding:16px;color:var(--c-outline);text-align:center;">Nenhum dado</div>';
+      return;
+    }
+    
+    var html = '';
+    configs.forEach(function(cfg) {
+      if (!cfg || !cfg.label || cfg.value === undefined) return;
+      html += '<div class="kpi-card" style="--kpi-accent:' + (cfg.accent || 'var(--c-primary)') + '">' +
+        '<div class="kpi-label">' + _esc(cfg.label) + '</div>' +
+        '<div class="kpi-value">' + _esc(cfg.value) + '</div>' +
+        '<div class="kpi-sub">' + _esc(cfg.sub || '') + '</div>' +
+        '</div>';
+    });
+    
+    if (!html) {
+      grid.innerHTML = '<div style="padding:16px;color:var(--c-outline);text-align:center;">Nenhum dado</div>';
+      return;
+    }
+    
+    grid.innerHTML = html;
+  }
+
+  function initialize(configs) {
+    update(configs);
+  }
+
+  return { initialize, update };
+})();
+</script>

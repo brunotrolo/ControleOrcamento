@@ -14,10 +14,10 @@
 
     <div class="nav-item active"
          role="button" tabindex="0"
-         onclick="handleNav(this,'view-dashboard','Visão Geral')"
-         onkeydown="if(event.key==='Enter')handleNav(this,'view-dashboard','Visão Geral')">
-      <span class="material-symbols-rounded">dashboard</span>
-      <span class="nav-label">Dashboard</span>
+         onclick="handleNav(this,'view-home','Página Inicial')"
+         onkeydown="if(event.key==='Enter')handleNav(this,'view-home','Página Inicial')">
+      <span class="material-symbols-rounded">home</span>
+      <span class="nav-label">Home</span>
     </div>
 
     <div class="nav-item"
@@ -91,39 +91,38 @@
       <div id="status-dot" class="dot pulse-green"></div>
       <span class="status-label">Sistema Online</span>
     </div>
-    <div class="version-tag">v2.0.0</div>
+    <div class="version-tag">v2.1.0</div>
   </div>
 
 </aside>
 
 <script>
 (function () {
-  const sidebar = document.getElementById('sidebar');
-  const btn     = document.getElementById('btn-toggle-sidebar');
+  var sidebar = document.getElementById('sidebar');
+  var btn     = document.getElementById('btn-toggle-sidebar');
 
-  // Restaura estado do menu
-  const isCollapsed = localStorage.getItem('bd-sidebar') !== 'expanded';
+  var isCollapsed = localStorage.getItem('bd-sidebar') !== 'expanded';
   if (!isCollapsed) {
     sidebar.classList.remove('collapsed');
     updateToggleIcon(false);
   }
 
-  btn.addEventListener('click', () => {
-    const willCollapse = !sidebar.classList.contains('collapsed');
+  btn.addEventListener('click', function() {
+    var willCollapse = !sidebar.classList.contains('collapsed');
     sidebar.classList.toggle('collapsed');
     localStorage.setItem('bd-sidebar', willCollapse ? 'collapsed' : 'expanded');
     updateToggleIcon(willCollapse);
   });
 
   function updateToggleIcon(collapsed) {
-    const icon = btn.querySelector('.material-symbols-rounded');
+    var icon = btn.querySelector('.material-symbols-rounded');
     icon.textContent = collapsed ? 'side_navigation' : 'menu_open';
     btn.title        = collapsed ? 'Expandir menu' : 'Recolher menu';
   }
 })();
 
 function handleNav(el, viewId, title) {
-  const prev = document.querySelector('.nav-item.active');
+  var prev = document.querySelector('.nav-item.active');
   if (prev) prev.classList.remove('active');
   el.classList.add('active');
   if (typeof navigateTo === 'function') navigateTo(viewId, title);

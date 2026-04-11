@@ -15,30 +15,27 @@
 
   <div class="main-content">
 
-    <!-- TOP BAR -->
     <header class="top-bar">
-      <h1 id="page-title">Visão Geral</h1>
-
+      <h1 id="page-title">Página Inicial</h1>
       <div class="top-bar-actions">
-        <!-- Monitor de Sincronização -->
         <div id="sync-monitor" class="sync-status idle">
           <span id="sync-timer">GAS: --s | CPU: --ms</span>
           <span class="material-symbols-rounded" id="sync-icon">radio_button_checked</span>
           <span id="sync-label">Sincronizado</span>
         </div>
-
-        <!-- Toggle de Tema -->
         <button id="theme-toggle" class="btn-icon" aria-label="Alternar tema">
           <span class="material-symbols-rounded">dark_mode</span>
         </button>
       </div>
     </header>
 
-    <!-- SCROLL WRAPPER — único overflow-y da área de conteúdo -->
     <div class="view-scroll">
 
-      <div id="view-dashboard" class="view-container active">
-        <?!= include('Page_Dashboard'); ?>
+      <!-- HOME -->
+      <div id="view-home" class="view-container active">
+        <?!= include('Card_Filter'); ?>
+        <?!= include('Card_KPI'); ?>
+        <?!= include('Page_Home'); ?>
       </div>
 
       <div id="view-notas-fiscais" class="view-container">
@@ -73,110 +70,77 @@
         <?!= include('Page_Debug'); ?>
       </div>
 
-    </div><!-- /view-scroll -->
-  </div><!-- /main-content -->
-</div><!-- /app-layout -->
+    </div>
+  </div>
+</div>
 
 <script>
-/* ============================================================
-   NAVEGAÇÃO
-   ============================================================ */
 function navigateTo(viewId, title) {
-  document.querySelectorAll('.view-container').forEach(v => {
+  document.querySelectorAll('.view-container').forEach(function(v) {
     v.classList.remove('active');
   });
-
-  const target = document.getElementById(viewId);
+  var target = document.getElementById(viewId);
   if (target) {
     target.classList.add('active');
     document.getElementById('page-title').textContent = title;
-
-    // Notifica a view que ela está em foco (lazy loading)
-    window.dispatchEvent(new CustomEvent('viewFocus', { detail: { viewId } }));
+    window.dispatchEvent(new CustomEvent('viewFocus', { detail: { viewId: viewId } }));
   }
 }
 
-/* ============================================================
-   SYNC MONITOR (global — acessível por todas as pages)
-   ============================================================ */
-const SyncMonitor = (() => {
-  const _el    = () => document.getElementById('sync-monitor');
-  const _icon  = () => document.getElementById('sync-icon');
-  const _label = () => document.getElementById('sync-label');
-  const _timer = () => document.getElementById('sync-timer');
-  const _dot   = () => document.getElementById('status-dot');
-  const _dLabel= () => document.querySelector('.status-label');
-
-  let _successTimer = null;
-
+var SyncMonitor = (function() {
+  var _el = function() { return document.getElementById('sync-monitor'); };
+  var _icon = function() { return document.getElementById('sync-icon'); };
+  var _label = function() { return document.getElementById('sync-label'); };
+  var _timer = function() { return document.getElementById('sync-timer'); };
+  var _successTimer = null;
   return {
-    update(state, message, metrics) {
-      const el = _el();
+    update: function(state, message, metrics) {
+      var el = _el();
       if (!el) return;
-
       el.className = 'sync-status ' + state;
       if (_label()) _label().textContent = message;
-
       if (state === 'loading') {
         if (_icon()) _icon().textContent = 'sync';
-        if (_dot())  _dot().className = 'dot pulse-blue';
-        if (_dLabel()) _dLabel().textContent = 'Sincronizando...';
         clearTimeout(_successTimer);
       } else {
         if (_icon()) _icon().textContent = 'radio_button_checked';
-
         if (metrics && _timer()) {
-          const s  = (metrics.gas / 1000).toFixed(2);
-          const ms = Math.round(metrics.cpu);
-          _timer().textContent = `GAS: ${s}s | CPU: ${ms}ms`;
+          var s = (metrics.gas / 1000).toFixed(2);
+          var ms = Math.round(metrics.cpu);
+          _timer().textContent = 'GAS: ' + s + 's | CPU: ' + ms + 'ms';
         }
-
         if (state === 'success') {
-          if (_dot())  _dot().className = 'dot pulse-green';
-          if (_dLabel()) _dLabel().textContent = 'Sistema Online';
-          _successTimer = setTimeout(() => {
+          _successTimer = setTimeout(function() {
             if (_el()) _el().className = 'sync-status idle';
             if (_label()) _label().textContent = 'Sincronizado';
           }, 3000);
-        } else if (state === 'error') {
-          if (_dot())  _dot().className = 'dot pulse-red';
-          if (_dLabel()) _dLabel().textContent = 'Erro de Conexão';
         }
       }
     }
   };
 })();
 
-/* ============================================================
-   TEMA
-   ============================================================ */
 (function initTheme() {
-  const btn   = document.getElementById('theme-toggle');
-  const saved = localStorage.getItem('bd-theme') ||
+  var btn = document.getElementById('theme-toggle');
+  var saved = localStorage.getItem('bd-theme') ||
     (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark-theme' : 'light-theme');
-
   function apply(theme) {
     document.body.className = theme;
-    const icon = btn && btn.querySelector('.material-symbols-rounded');
+    var icon = btn && btn.querySelector('.material-symbols-rounded');
     if (icon) icon.textContent = theme === 'dark-theme' ? 'light_mode' : 'dark_mode';
   }
-
   apply(saved);
-
   if (btn) {
-    btn.addEventListener('click', () => {
-      const next = document.body.classList.contains('dark-theme') ? 'light-theme' : 'dark-theme';
+    btn.addEventListener('click', function() {
+      var next = document.body.classList.contains('dark-theme') ? 'light-theme' : 'dark-theme';
       apply(next);
       localStorage.setItem('bd-theme', next);
     });
   }
 })();
 
-/* ============================================================
-   BOOT — dispara a view inicial
-   ============================================================ */
-document.addEventListener('DOMContentLoaded', () => {
-  window.dispatchEvent(new CustomEvent('viewFocus', { detail: { viewId: 'view-dashboard' } }));
+document.addEventListener('DOMContentLoaded', function() {
+  window.dispatchEvent(new CustomEvent('viewFocus', { detail: { viewId: 'view-home' } }));
 });
 </script>
 </body>

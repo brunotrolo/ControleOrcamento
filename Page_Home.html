@@ -1,0 +1,133 @@
+<!--
+  Page_Home.html - Página inicial
+-->
+
+<div id="view-home-content"></div>
+
+<script>
+(function() {
+
+  var _allData = [];
+  var _loaded = false;
+
+  function R(n) { return Math.round((parseFloat(n)||0)*100)/100; }
+  function BRL(n) { return R(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+
+  var _meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+
+  function _formatCompetencia(val) {
+    var m = String(val).match(/(\d{2})\/(\d{4})/);
+    if (m) {
+      var mes = parseInt(m[1]);
+      var mesNome = _meses[mes - 1] || m[1];
+      return mesNome + '/' + m[2];
+    }
+    return val;
+  }
+
+  function applyFilters(data, filters) {
+    if (!filters || Object.keys(filters).every(function(k) { var v = filters[k]; return !v || v.length === 0; })) {
+      return data;
+    }
+    return data.filter(function(row) {
+      return Object.keys(filters).every(function(filterKey) {
+        var vals = filters[filterKey];
+        if (!vals || vals.length === 0) return true;
+        
+        var colName = filterKey;
+        var rowVal = String(row[colName] || '').trim();
+        
+        // Se for competência, converter o valor da linha também
+        if (filterKey === 'competencia') {
+          rowVal = _formatCompetencia(rowVal);
+        }
+        
+        return vals.some(function(v) { return rowVal === String(v).trim(); });
+      });
+    });
+  }
+
+  function calcKpis(data) {
+    var tAuth = 0, nAuth = 0, tCanc = 0, nCanc = 0, tVen = 0, nVen = 0;
+    var hoje = new Date();
+    data.forEach(function(row) {
+      var s = (row.status_nfe || '').trim();
+      var v = R(row.total_nfe || 0);
+      var dv = row.data_vencimento;
+      var dias = null;
+      if (dv) {
+        var d = dv instanceof Date ? dv : new Date(dv);
+        if (!isNaN(d.getTime())) dias = Math.round((d.getTime() - hoje.getTime()) / 86400000);
+      }
+      if (s === 'Autorizada') {
+        tAuth = R(tAuth + v);
+        nAuth++;
+        if (dias !== null && dias >= 0 && dias <= 30) { tVen = R(tVen + v); nVen++; }
+      } else if (s === 'Cancelada') {
+        tCanc = R(tCanc + v);
+        nCanc++;
+      }
+    });
+    return {
+      tAuth: tAuth, nAuth: nAuth, tCanc: tCanc, nCanc: nCanc,
+      tVen: tVen, nVen: nVen, total: data.length
+    };
+  }
+
+  function updateKpis(kpis) {
+    if (typeof CardKPI !== 'undefined') {
+      CardKPI.update([
+        { label: 'Total Autorizado', value: BRL(kpis.tAuth), sub: kpis.nAuth + ' NFs', accent: '#6366f1' },
+        { label: 'Total Cancelado', value: BRL(kpis.tCanc), sub: kpis.nCanc + ' NFs', accent: '#f43f5e' },
+        { label: 'Vencendo em 30 dias', value: BRL(kpis.tVen), sub: kpis.nVen + ' NFs', accent: '#f59e0b' },
+        { label: 'Total de Registros', value: kpis.total, sub: 'Notas no período', accent: '#10b981' }
+      ]);
+    }
+  }
+
+  function load() {
+    if (_loaded) return;
+    SyncMonitor.update('loading', 'Carregando...');
+    var t0 = performance.now();
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res.success) {
+          SyncMonitor.update('error', 'Erro');
+          return;
+        }
+        _allData = res.data || [];
+        _loaded = true;
+        var kpis = calcKpis(_allData);
+        updateKpis(kpis);
+        SyncMonitor.update('success', 'Carregado', {
+          gas: res.metrics ? res.metrics.executionTime : 0,
+          cpu: performance.now() - t0
+        });
+      })
+      .withFailureHandler(function(err) {
+        SyncMonitor.update('error', 'Falha');
+        console.error(err);
+      })
+      .routerGetSheet('NOTA_FISCAL');
+  }
+
+  window.addEventListener('viewFocus', function(e) {
+    if (e.detail.viewId === 'view-home') {
+      load();
+      if (typeof CardFilter !== 'undefined') {
+        CardFilter.initialize(function(filters) {
+          var filtered = applyFilters(_allData, filters);
+          var kpis = calcKpis(filtered);
+          updateKpis(kpis);
+        });
+      }
+    } else {
+      _loaded = false;
+      if (typeof CardFilter !== 'undefined' && typeof CardFilter.cleanup === 'function') {
+        CardFilter.cleanup();
+      }
+    }
+  });
+
+})();
+</script>
