@@ -77,10 +77,10 @@
   function updateKpis(kpis) {
     if (typeof CardKPI !== 'undefined') {
       CardKPI.update([
-        { label: 'Total Autorizado', value: BRL(kpis.tAuth), sub: kpis.nAuth + ' NFs', accent: '#6366f1' },
-        { label: 'Total Cancelado', value: BRL(kpis.tCanc), sub: kpis.nCanc + ' NFs', accent: '#f43f5e' },
-        { label: 'Vencendo em 30 dias', value: BRL(kpis.tVen), sub: kpis.nVen + ' NFs', accent: '#f59e0b' },
-        { label: 'Total de Registros', value: kpis.total, sub: 'Notas no período', accent: '#10b981' }
+        { key: 'total_autorizado', label: 'Total Autorizado', value: BRL(kpis.tAuth), sub: kpis.nAuth + ' NFs', accent: '#6366f1' },
+        { key: 'total_cancelado', label: 'Total Cancelado', value: BRL(kpis.tCanc), sub: kpis.nCanc + ' NFs', accent: '#f43f5e' },
+        { key: 'vencendo_30dias', label: 'Vencendo em 30 dias', value: BRL(kpis.tVen), sub: kpis.nVen + ' NFs', accent: '#f59e0b' },
+        { key: 'total_registros', label: 'Total de Registros', value: kpis.total, sub: 'Notas no período', accent: '#10b981' }
       ]);
     }
   }
@@ -126,6 +126,14 @@
       if (typeof CardFilter !== 'undefined' && typeof CardFilter.cleanup === 'function') {
         CardFilter.cleanup();
       }
+    }
+  });
+
+  window.addEventListener('loadKpiDetails', function(e) {
+    var detail = e.detail;
+    // Injetar _allData do Page_Home se não existir
+    if (!detail.allData || detail.allData.length === 0) {
+      detail.allData = _allData;
     }
   });
 

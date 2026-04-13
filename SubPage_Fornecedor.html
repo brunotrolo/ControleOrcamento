@@ -1,0 +1,78 @@
+<!--
+  SubPage_Fornecedor.html - Total de notas por fornecedor
+-->
+
+<script>
+window.SubPageFornecedor = (function() {
+
+  function _esc(v) {
+    return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _formatCurrency(val) {
+    var n = parseFloat(val) || 0;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function render(kpiKey, label, allData) {
+    var fornecedores = {};
+
+    allData.forEach(function(row) {
+      if ((row.status_nfe || '').trim() !== 'Autorizada') return;
+      var nome = row.nome_fantasia || 'N/A';
+      if (!fornecedores[nome]) {
+        fornecedores[nome] = { total: 0, qtd: 0 };
+      }
+      fornecedores[nome].total += parseFloat(row.total_nfe) || 0;
+      fornecedores[nome].qtd++;
+    });
+
+    var sorted = Object.keys(fornecedores).sort(function(a, b) {
+      return fornecedores[b].total - fornecedores[a].total;
+    });
+
+    if (sorted.length === 0) {
+      return '<p style="color:var(--c-outline);text-align:center;padding:20px;">Nenhum dado</p>';
+    }
+
+    var totalGeral = 0;
+    sorted.forEach(function(f) { totalGeral += fornecedores[f].total; });
+
+    var html = '<div style="padding:20px;">' +
+      '<div style="font-size:0.875rem;font-weight:600;color:var(--c-on-surface);margin-bottom:20px;">Fornecedores (' + sorted.length + ')</div>' +
+      '<div style="display:flex;flex-direction:column;gap:12px;">';
+
+    sorted.forEach(function(nome) {
+      var data = fornecedores[nome];
+      var pct = (data.total / totalGeral) * 100;
+
+      html += '<div style="padding:14px;background:var(--c-surface-cont-low);border-radius:var(--border-radius-md);border-left:4px solid #f59e0b;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">' +
+        '<div style="flex:1;">' +
+        '<div style="font-size:0.875rem;font-weight:700;color:var(--c-on-surface);">' + _esc(nome) + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--c-outline);margin-top:2px;">' + data.qtd + ' NF(s)</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+        '<div style="font-size:0.95rem;font-weight:700;color:var(--c-on-surface);font-family:DM Mono,monospace;">' + _formatCurrency(data.total) + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--c-primary);font-weight:600;margin-top:2px;">' + pct.toFixed(1) + '%</div>' +
+        '</div>' +
+        '</div>' +
+        '<div style="background:var(--c-surface-cont);border-radius:4px;height:6px;overflow:hidden;">' +
+        '<div style="background:linear-gradient(to right, #f59e0b, #fbbf24);height:100%;width:' + pct + '%;"></div>' +
+        '</div>' +
+        '</div>';
+    });
+
+    html += '</div></div>';
+    return html;
+  }
+
+  return { render };
+})();
+
+window.addEventListener('loadKpiDetails', function(e) {
+  var detail = e.detail;
+  if (!detail.container || detail.kpiKey !== 'fornecedor') return;
+  detail.container.innerHTML = SubPageFornecedor.render(detail.kpiKey, detail.label, detail.allData);
+});
+</script>

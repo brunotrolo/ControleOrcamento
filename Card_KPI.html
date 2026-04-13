@@ -1,5 +1,5 @@
 <!--
-  Card_KPI.html - Indicadores Principais
+  Card_KPI.html - Indicadores com sidebar e abas de SubPages
 -->
 
 <style>
@@ -33,6 +33,14 @@
   gap: 6px;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.kpi-card:hover {
+  border-color: var(--c-primary);
+  box-shadow: var(--el-2);
+  transform: translateY(-2px);
 }
 
 .kpi-card::before {
@@ -65,6 +73,65 @@
   font-size: 0.72rem;
   color: var(--c-outline);
 }
+
+@keyframes kpi-sidebar-enter {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes kpi-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.kpi-sidebar-opening #kpi-overlay {
+  animation: kpi-overlay-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+
+.kpi-sidebar-opening #kpi-sidebar {
+  animation: kpi-sidebar-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+
+.kpi-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--c-outline-variant);
+  overflow-x: auto;
+}
+
+.kpi-tab {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--c-outline);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all var(--t-fast);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.kpi-tab:hover {
+  color: var(--c-on-surface);
+}
+
+.kpi-tab.active {
+  color: var(--c-primary);
+  border-bottom-color: var(--c-primary);
+}
 </style>
 
 <div class="card-kpi">
@@ -77,8 +144,144 @@
 <script>
 window.CardKPI = (function() {
 
+  var _configs = [];
+  var _sidebarOpen = false;
+  var _currentKpiKey = null;
+
   function _esc(v) {
     return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _createSidebar() {
+    if (document.getElementById('kpi-sidebar-wrapper')) return;
+    
+    var wrapper = document.createElement('div');
+    wrapper.id = 'kpi-sidebar-wrapper';
+    wrapper.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;display:none;';
+    
+    var overlay = document.createElement('div');
+    overlay.id = 'kpi-overlay';
+    overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0);z-index:1;';
+    
+    var sidebar = document.createElement('div');
+    sidebar.id = 'kpi-sidebar';
+    sidebar.style.cssText = 'position:absolute;top:0;right:0;width:90%;max-width:90vw;height:100%;background:var(--c-surface);border-left:1px solid var(--c-outline-variant);box-shadow:var(--el-3);z-index:2;display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translateX(100px);';
+    
+    var header = document.createElement('div');
+    header.style.cssText = 'padding:20px;border-bottom:2px solid var(--c-outline-variant);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0;';
+    
+    var title = document.createElement('h2');
+    title.id = 'kpi-sidebar-title';
+    title.style.cssText = 'font-size:1rem;font-weight:700;color:var(--c-on-surface);margin:0;flex:1;';
+    title.textContent = 'Detalhes';
+    
+    var closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'background:transparent;border:none;cursor:pointer;color:var(--c-on-surface);padding:4px;display:flex;align-items:center;justify-content:center;border-radius:var(--border-radius-md);font-size:24px;line-height:1;';
+    closeBtn.innerHTML = '<span class="material-symbols-rounded">close</span>';
+    closeBtn.addEventListener('click', _closeSidebar);
+    
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    
+    // Abas/Tabs
+    var tabs = document.createElement('div');
+    tabs.id = 'kpi-tabs';
+    tabs.className = 'kpi-tabs';
+    tabs.style.cssText = 'padding:0 20px;';
+    
+    var tabConfigs = [
+      { key: 'summary', label: 'Resumo' },
+      { key: 'evolucao_mensal', label: 'Evolução Mensal' },
+      { key: 'fornecedor', label: 'Fornecedor' },
+      { key: 'iniciativa', label: 'Iniciativa' },
+      { key: 'prestador', label: 'Prestador' }
+    ];
+    
+    tabConfigs.forEach(function(cfg) {
+      var tab = document.createElement('button');
+      tab.className = 'kpi-tab' + (cfg.key === 'summary' ? ' active' : '');
+      tab.textContent = cfg.label;
+      tab.dataset.tab = cfg.key;
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.kpi-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        _loadTab(cfg.key);
+      });
+      tabs.appendChild(tab);
+    });
+    
+    var tabsWrapper = document.createElement('div');
+    tabsWrapper.style.cssText = 'border-bottom:2px solid var(--c-outline-variant);';
+    tabsWrapper.appendChild(tabs);
+    
+    var content = document.createElement('div');
+    content.id = 'kpi-sidebar-content';
+    content.style.cssText = 'flex:1;overflow-y:auto;padding:0;';
+    content.textContent = 'Carregando...';
+    
+    sidebar.appendChild(header);
+    sidebar.appendChild(tabsWrapper);
+    sidebar.appendChild(content);
+    
+    wrapper.appendChild(overlay);
+    wrapper.appendChild(sidebar);
+    
+    document.body.appendChild(wrapper);
+    
+    overlay.addEventListener('click', _closeSidebar);
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && _sidebarOpen) _closeSidebar();
+    });
+  }
+
+  function _loadTab(tabKey) {
+    var content = document.getElementById('kpi-sidebar-content');
+    if (!content) return;
+    
+    content.innerHTML = '<p style="color:var(--c-outline);text-align:center;padding:20px;">Carregando...</p>';
+    
+    window.dispatchEvent(new CustomEvent('loadKpiDetails', { 
+      detail: { kpiKey: tabKey, label: 'Tab: ' + tabKey, container: content, allData: window._allDataGlobal || [] } 
+    }));
+  }
+
+  function _closeSidebar() {
+    var wrapper = document.getElementById('kpi-sidebar-wrapper');
+    if (!wrapper) return;
+    
+    wrapper.classList.remove('kpi-sidebar-opening');
+    
+    setTimeout(function() {
+      wrapper.style.display = 'none';
+      _sidebarOpen = false;
+    }, 300);
+  }
+
+  function _openSidebar(kpiKey, label) {
+    _createSidebar();
+    var wrapper = document.getElementById('kpi-sidebar-wrapper');
+    var overlay = document.getElementById('kpi-overlay');
+    var sidebar = document.getElementById('kpi-sidebar');
+    var title = document.getElementById('kpi-sidebar-title');
+    
+    if (!overlay || !sidebar || !title) return;
+    
+    title.textContent = label;
+    
+    wrapper.style.display = 'block';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0)';
+    sidebar.style.opacity = '0';
+    sidebar.style.transform = 'translateX(100px)';
+    
+    _currentKpiKey = kpiKey;
+    _sidebarOpen = true;
+    
+    setTimeout(function() {
+      wrapper.classList.add('kpi-sidebar-opening');
+      overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+    }, 10);
+    
+    _loadTab('summary');
   }
 
   function update(configs) {
@@ -93,7 +296,8 @@ window.CardKPI = (function() {
     var html = '';
     configs.forEach(function(cfg) {
       if (!cfg || !cfg.label || cfg.value === undefined) return;
-      html += '<div class="kpi-card" style="--kpi-accent:' + (cfg.accent || 'var(--c-primary)') + '">' +
+      var key = cfg.key || cfg.label.toLowerCase().replace(/\s+/g, '_');
+      html += '<div class="kpi-card" style="--kpi-accent:' + (cfg.accent || 'var(--c-primary)') + '" data-kpi="' + _esc(key) + '">' +
         '<div class="kpi-label">' + _esc(cfg.label) + '</div>' +
         '<div class="kpi-value">' + _esc(cfg.value) + '</div>' +
         '<div class="kpi-sub">' + _esc(cfg.sub || '') + '</div>' +
@@ -106,12 +310,26 @@ window.CardKPI = (function() {
     }
     
     grid.innerHTML = html;
+    _configs = configs;
+    
+    grid.querySelectorAll('.kpi-card').forEach(function(card) {
+      card.addEventListener('click', function() {
+        var kpiKey = card.dataset.kpi;
+        var cfg = _configs.find(function(c) { 
+          return (c.key || c.label.toLowerCase().replace(/\s+/g, '_')) === kpiKey; 
+        });
+        if (cfg) {
+          _openSidebar(kpiKey, cfg.label);
+        }
+      });
+    });
   }
 
   function initialize(configs) {
     update(configs);
+    _createSidebar();
   }
 
-  return { initialize, update };
+  return { initialize, update, closeSidebar: _closeSidebar };
 })();
 </script>

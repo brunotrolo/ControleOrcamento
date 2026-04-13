@@ -1,0 +1,121 @@
+<!--
+  SubPage_Prestador.html - Custo por prestador + detalhes de profissionais
+-->
+
+<script>
+window.SubPagePrestador = (function() {
+
+  function _esc(v) {
+    return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _formatCurrency(val) {
+    var n = parseFloat(val) || 0;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function render(kpiKey, label, allData) {
+    var prestadores = {};
+
+    allData.forEach(function(row) {
+      if ((row.status_nfe || '').trim() !== 'Autorizada') return;
+      
+      var nome = row.razao_social || 'N/A';
+      var nfe = row.nfe || '';
+      var fantasia = row.nome_fantasia || 'N/A';
+      var total = parseFloat(row.total_nfe) || 0;
+      
+      if (!prestadores[nome]) {
+        prestadores[nome] = { 
+          total: 0, 
+          qtd: 0, 
+          fornecedor: fantasia,
+          profissionais: {}
+        };
+      }
+      prestadores[nome].total += total;
+      prestadores[nome].qtd++;
+      
+      // Agrupar por profissional (NOME_PROFISSIONAL vem via row - se houver)
+      var profissional = row.nome_profissional || 'Não especificado';
+      if (!prestadores[nome].profissionais[profissional]) {
+        prestadores[nome].profissionais[profissional] = {
+          papel: row.papel_prestador || 'N/A',
+          horas: parseFloat(row.total_horas) || 0,
+          hh: parseFloat(row.hh) || 0,
+          count: 0
+        };
+      }
+      prestadores[nome].profissionais[profissional].count++;
+    });
+
+    var sorted = Object.keys(prestadores).sort(function(a, b) {
+      return prestadores[b].total - prestadores[a].total;
+    });
+
+    if (sorted.length === 0) {
+      return '<p style="color:var(--c-outline);text-align:center;padding:20px;">Nenhum dado</p>';
+    }
+
+    var totalGeral = 0;
+    sorted.forEach(function(p) { totalGeral += prestadores[p].total; });
+
+    var html = '<div style="padding:20px;">' +
+      '<div style="font-size:0.875rem;font-weight:600;color:var(--c-on-surface);margin-bottom:20px;">Prestadores (' + sorted.length + ')</div>' +
+      '<div style="display:flex;flex-direction:column;gap:12px;">';
+
+    sorted.forEach(function(nome) {
+      var data = prestadores[nome];
+      var pct = (data.total / totalGeral) * 100;
+      var profissionais = Object.keys(data.profissionais);
+
+      html += '<div style="padding:14px;background:var(--c-surface-cont-low);border-radius:var(--border-radius-md);border-left:4px solid #10b981;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">' +
+        '<div style="flex:1;">' +
+        '<div style="font-size:0.875rem;font-weight:700;color:var(--c-on-surface);">' + _esc(nome) + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--c-outline);margin-top:2px;">' + _esc(data.fornecedor) + ' • ' + data.qtd + ' NF(s)</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+        '<div style="font-size:0.95rem;font-weight:700;color:var(--c-on-surface);font-family:DM Mono,monospace;">' + _formatCurrency(data.total) + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--c-primary);font-weight:600;margin-top:2px;">' + pct.toFixed(1) + '%</div>' +
+        '</div>' +
+        '</div>' +
+        '<div style="background:var(--c-surface-cont);border-radius:4px;height:6px;overflow:hidden;margin-bottom:10px;">' +
+        '<div style="background:linear-gradient(to right, #10b981, #34d399);height:100%;width:' + pct + '%;"></div>' +
+        '</div>';
+
+      if (profissionais.length > 0) {
+        html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--c-outline-variant);font-size:0.7rem;font-weight:700;color:var(--c-outline);margin-bottom:8px;">Profissionais (' + profissionais.length + ')</div>' +
+          '<div style="display:flex;flex-direction:column;gap:6px;">';
+
+        profissionais.forEach(function(prof) {
+          var p = data.profissionais[prof];
+          html += '<div style="padding:8px;background:color-mix(in srgb, #10b981 8%, transparent);border-radius:var(--border-radius-md);font-size:0.72rem;">' +
+            '<div style="font-weight:600;color:var(--c-on-surface);">' + _esc(prof) + '</div>' +
+            '<div style="color:var(--c-outline);margin-top:2px;">' +
+            'Papel: ' + _esc(p.papel) + ' • ' +
+            'Horas: ' + p.horas.toFixed(1) + ' • ' +
+            'H/H: R$ ' + p.hh.toFixed(2) +
+            '</div>' +
+            '</div>';
+        });
+
+        html += '</div>';
+      }
+
+      html += '</div>';
+    });
+
+    html += '</div></div>';
+    return html;
+  }
+
+  return { render };
+})();
+
+window.addEventListener('loadKpiDetails', function(e) {
+  var detail = e.detail;
+  if (!detail.container || detail.kpiKey !== 'prestador') return;
+  detail.container.innerHTML = SubPagePrestador.render(detail.kpiKey, detail.label, detail.allData);
+});
+</script>

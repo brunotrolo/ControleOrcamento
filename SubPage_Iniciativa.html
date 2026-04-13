@@ -1,0 +1,78 @@
+<!--
+  SubPage_Iniciativa.html - Custo total por iniciativa
+-->
+
+<script>
+window.SubPageIniciativa = (function() {
+
+  function _esc(v) {
+    return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _formatCurrency(val) {
+    var n = parseFloat(val) || 0;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function render(kpiKey, label, allData) {
+    var iniciativas = {};
+
+    allData.forEach(function(row) {
+      if ((row.status_nfe || '').trim() !== 'Autorizada') return;
+      var nome = row.iniciativa || 'N/A';
+      if (!iniciativas[nome]) {
+        iniciativas[nome] = { total: 0, qtd: 0 };
+      }
+      iniciativas[nome].total += parseFloat(row.total_nfe) || 0;
+      iniciativas[nome].qtd++;
+    });
+
+    var sorted = Object.keys(iniciativas).sort(function(a, b) {
+      return iniciativas[b].total - iniciativas[a].total;
+    });
+
+    if (sorted.length === 0) {
+      return '<p style="color:var(--c-outline);text-align:center;padding:20px;">Nenhum dado</p>';
+    }
+
+    var totalGeral = 0;
+    sorted.forEach(function(i) { totalGeral += iniciativas[i].total; });
+
+    var html = '<div style="padding:20px;">' +
+      '<div style="font-size:0.875rem;font-weight:600;color:var(--c-on-surface);margin-bottom:20px;">Iniciativas (' + sorted.length + ')</div>' +
+      '<div style="display:flex;flex-direction:column;gap:12px;">';
+
+    sorted.forEach(function(nome) {
+      var data = iniciativas[nome];
+      var pct = (data.total / totalGeral) * 100;
+
+      html += '<div style="padding:14px;background:var(--c-surface-cont-low);border-radius:var(--border-radius-md);border-left:4px solid #6366f1;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">' +
+        '<div style="flex:1;">' +
+        '<div style="font-size:0.875rem;font-weight:700;color:var(--c-on-surface);">' + _esc(nome) + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--c-outline);margin-top:2px;">' + data.qtd + ' NF(s)</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+        '<div style="font-size:0.95rem;font-weight:700;color:var(--c-on-surface);font-family:DM Mono,monospace;">' + _formatCurrency(data.total) + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--c-primary);font-weight:600;margin-top:2px;">' + pct.toFixed(1) + '%</div>' +
+        '</div>' +
+        '</div>' +
+        '<div style="background:var(--c-surface-cont);border-radius:4px;height:6px;overflow:hidden;">' +
+        '<div style="background:linear-gradient(to right, #6366f1, #818cf8);height:100%;width:' + pct + '%;"></div>' +
+        '</div>' +
+        '</div>';
+    });
+
+    html += '</div></div>';
+    return html;
+  }
+
+  return { render };
+})();
+
+window.addEventListener('loadKpiDetails', function(e) {
+  var detail = e.detail;
+  if (!detail.container || detail.kpiKey !== 'iniciativa') return;
+  detail.container.innerHTML = SubPageIniciativa.render(detail.kpiKey, detail.label, detail.allData);
+});
+</script>

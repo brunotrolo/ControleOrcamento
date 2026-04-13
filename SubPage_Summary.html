@@ -1,0 +1,89 @@
+<!--
+  SubPage_Summary.html - Resumo do KPI selecionado
+-->
+
+<script>
+window.SubPageSummary = (function() {
+
+  function _esc(v) {
+    return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _formatCurrency(val) {
+    var n = parseFloat(val) || 0;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function render(kpiKey, label, allData) {
+    var html = '';
+    
+    var stats = {
+      tAuth: 0, nAuth: 0, tCanc: 0, nCanc: 0, tVen: 0, nVen: 0,
+      fornecedores: {}, iniciativas: {}, meses: {}
+    };
+    
+    var hoje = new Date();
+    
+    allData.forEach(function(row) {
+      var status = (row.status_nfe || '').trim();
+      var val = parseFloat(row.total_nfe) || 0;
+      
+      if (status === 'Autorizada') {
+        stats.tAuth += val;
+        stats.nAuth++;
+        stats.fornecedores[row.nome_fantasia] = true;
+        stats.iniciativas[row.iniciativa] = true;
+        
+        var m = String(row.competencia || '').match(/(\d{2})\/(\d{4})/);
+        if (m) stats.meses[m[2] + '-' + m[1]] = true;
+        
+        var dv = row.data_vencimento;
+        if (dv) {
+          var d = dv instanceof Date ? dv : new Date(dv);
+          if (!isNaN(d.getTime())) {
+            var dias = Math.round((d.getTime() - hoje.getTime()) / 86400000);
+            if (dias >= 0 && dias <= 30) { stats.tVen += val; stats.nVen++; }
+          }
+        }
+      } else if (status === 'Cancelada') {
+        stats.tCanc += val;
+        stats.nCanc++;
+      }
+    });
+    
+    html = '<div style="padding:20px;">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;">' +
+      '<div style="padding:14px;background:var(--c-surface-cont-low);border-left:4px solid #6366f1;border-radius:var(--border-radius-md);">' +
+      '<div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;color:var(--c-outline);">Total Autorizado</div>' +
+      '<div style="font-size:0.95rem;font-weight:700;color:var(--c-on-surface);font-family:DM Mono,monospace;margin-top:6px;">' + _formatCurrency(stats.tAuth) + '</div>' +
+      '<div style="font-size:0.7rem;color:var(--c-outline);margin-top:4px;">' + stats.nAuth + ' NF(s)</div>' +
+      '</div>' +
+      '<div style="padding:14px;background:var(--c-surface-cont-low);border-left:4px solid #f43f5e;border-radius:var(--border-radius-md);">' +
+      '<div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;color:var(--c-outline);">Total Cancelado</div>' +
+      '<div style="font-size:0.95rem;font-weight:700;color:var(--c-on-surface);font-family:DM Mono,monospace;margin-top:6px;">' + _formatCurrency(stats.tCanc) + '</div>' +
+      '<div style="font-size:0.7rem;color:var(--c-outline);margin-top:4px;">' + stats.nCanc + ' NF(s)</div>' +
+      '</div>' +
+      '<div style="padding:14px;background:var(--c-surface-cont-low);border-left:4px solid #f59e0b;border-radius:var(--border-radius-md);">' +
+      '<div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;color:var(--c-outline);">Vencendo 30 dias</div>' +
+      '<div style="font-size:0.95rem;font-weight:700;color:var(--c-on-surface);font-family:DM Mono,monospace;margin-top:6px;">' + _formatCurrency(stats.tVen) + '</div>' +
+      '<div style="font-size:0.7rem;color:var(--c-outline);margin-top:4px;">' + stats.nVen + ' NF(s)</div>' +
+      '</div>' +
+      '<div style="padding:14px;background:var(--c-surface-cont-low);border-left:4px solid #10b981;border-radius:var(--border-radius-md);">' +
+      '<div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;color:var(--c-outline);">Fornecedores</div>' +
+      '<div style="font-size:0.95rem;font-weight:700;color:var(--c-on-surface);margin-top:6px;">' + Object.keys(stats.fornecedores).length + '</div>' +
+      '</div>' +
+      '</div>' +
+      '</div>';
+    
+    return html;
+  }
+
+  return { render };
+})();
+
+window.addEventListener('loadKpiDetails', function(e) {
+  var detail = e.detail;
+  if (!detail.container || detail.kpiKey !== 'summary') return;
+  detail.container.innerHTML = SubPageSummary.render(detail.kpiKey, detail.label, detail.allData);
+});
+</script>

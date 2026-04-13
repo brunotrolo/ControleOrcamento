@@ -1,0 +1,114 @@
+<!--
+  SubPage_EvolucaoMensal.html - Gráfico de linhas + lista de dados mensais
+-->
+
+<script>
+window.SubPageEvolucaoMensal = (function() {
+
+  function _esc(v) {
+    return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _formatCurrency(val) {
+    var n = parseFloat(val) || 0;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function render(kpiKey, label, allData) {
+    var meses = {};
+    var mesesNome = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+    
+    allData.forEach(function(row) {
+      if ((row.status_nfe || '').trim() !== 'Autorizada') return;
+      var m = String(row.competencia || '').match(/(\d{2})\/(\d{4})/);
+      if (m) {
+        var key = m[2] + '-' + m[1];
+        if (!meses[key]) meses[key] = { mes: m[1], ano: m[2], total: 0, qtd: 0 };
+        meses[key].total += parseFloat(row.total_nfe) || 0;
+        meses[key].qtd++;
+      }
+    });
+
+    var sorted = Object.keys(meses).sort().map(function(k) { return meses[k]; });
+    if (sorted.length === 0) {
+      return '<p style="color:var(--c-outline);text-align:center;padding:20px;">Nenhum dado</p>';
+    }
+
+    var maxVal = Math.max.apply(null, sorted.map(function(m) { return m.total; }));
+    var minVal = Math.min.apply(null, sorted.map(function(m) { return m.total; }));
+    
+    var width = 600;
+    var height = 250;
+    var padding = 40;
+    var graphWidth = width - (padding * 2);
+    var graphHeight = height - (padding * 2);
+    
+    var xStep = graphWidth / (sorted.length > 1 ? sorted.length - 1 : 1);
+    var yScale = (maxVal - minVal) === 0 ? 1 : graphHeight / (maxVal - minVal);
+    
+    var points = sorted.map(function(m, i) {
+      var x = padding + (i * xStep);
+      var y = padding + graphHeight - ((m.total - minVal) * yScale);
+      return { x: x, y: y, value: m.total, mes: m.mes, ano: m.ano, index: i };
+    });
+    
+    var pathD = points.map(function(p, i) {
+      return (i === 0 ? 'M' : 'L') + ' ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+    }).join(' ');
+    
+    var fillPathD = pathD + ' L ' + points[points.length-1].x + ' ' + (padding + graphHeight) + ' L ' + points[0].x + ' ' + (padding + graphHeight) + ' Z';
+    
+    var html = '<div style="padding:20px;">' +
+      '<div style="font-size:0.875rem;font-weight:600;color:var(--c-on-surface);margin-bottom:20px;">Evolução Mensal de Custos</div>' +
+      '<div style="background:var(--c-surface-cont-low);border-radius:var(--border-radius-lg);padding:20px;margin-bottom:20px;overflow-x:auto;">' +
+      '<svg width="' + width + '" height="' + height + '" style="min-width:' + width + 'px;" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' +
+      '<linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">' +
+      '<stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.8" />' +
+      '<stop offset="100%" style="stop-color:#6366f1;stop-opacity:0.1" />' +
+      '</linearGradient>' +
+      '</defs>' +
+      '<path d="' + fillPathD + '" fill="url(#lineGradient)" />' +
+      '<path d="' + pathD + '" stroke="#6366f1" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+    
+    points.forEach(function(p) {
+      html += '<circle cx="' + p.x + '" cy="' + p.y + '" r="5" fill="#6366f1" stroke="#f5f5f5" stroke-width="2" />';
+    });
+    
+    points.forEach(function(p) {
+      var x = p.x;
+      var mesNome = mesesNome[parseInt(p.mes) - 1] || p.mes;
+      html += '<text x="' + x + '" y="' + (padding + graphHeight + 20) + '" text-anchor="middle" font-size="11" fill="#888" font-family="system-ui" font-weight="600">' + mesNome + '</text>' +
+        '<text x="' + x + '" y="' + (padding + graphHeight + 35) + '" text-anchor="middle" font-size="10" fill="#aaa" font-family="system-ui">' + p.ano + '</text>';
+    });
+    
+    html += '</svg>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;">';
+    
+    sorted.forEach(function(m) {
+      var mesNome = mesesNome[parseInt(m.mes) - 1] || m.mes;
+      html += '<div style="padding:12px 16px;background:var(--c-surface-cont-low);border-left:4px solid #6366f1;border-radius:var(--border-radius-md);display:flex;justify-content:space-between;align-items:center;">' +
+        '<div>' +
+        '<div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;color:var(--c-outline);">' + mesNome + '/' + m.ano + '</div>' +
+        '<div style="font-size:0.7rem;color:var(--c-outline);margin-top:2px;">' + m.qtd + ' NF(s)</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+        '<div style="font-size:0.95rem;font-weight:700;color:var(--c-on-surface);font-family:DM Mono,monospace;">' + _formatCurrency(m.total) + '</div>' +
+        '</div>' +
+        '</div>';
+    });
+    
+    html += '</div></div>';
+    return html;
+  }
+
+  return { render };
+})();
+
+window.addEventListener('loadKpiDetails', function(e) {
+  var detail = e.detail;
+  if (!detail.container || detail.kpiKey !== 'evolucao_mensal') return;
+  detail.container.innerHTML = SubPageEvolucaoMensal.render(detail.kpiKey, detail.label, detail.allData);
+});
+</script>
