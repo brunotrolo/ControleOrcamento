@@ -380,3 +380,52 @@ function _parseMesAno(str) {
   if (parts.length !== 2) return 0;
   return new Date(parseInt(parts[1]), parseInt(parts[0]) - 1, 1).getTime();
 }
+
+
+// --------------------------------------------------------------------------
+// NOTA FISCAL ANALÍTICO — DADOS DE PROFISSIONAIS
+// Adicione estas funções ao final do Router.gs
+// --------------------------------------------------------------------------
+
+/**
+ * GET — Retorna dados de NOTA_FISCAL_ANALITICO (profissionais por NF)
+ */
+function routerGetNotaFiscalAnalitico() {
+  return _route(() => {
+    _assertAllowed(ALLOWED_SHEETS.NOTA_FISCAL_ANALITICO);
+    const data = fetchAll(ALLOWED_SHEETS.NOTA_FISCAL_ANALITICO);
+    return { data };
+  });
+}
+
+/**
+ * GET — Combina NOTA_FISCAL + NOTA_FISCAL_ANALITICO
+ * Relaciona por NOME_FANTASIA + NFE
+ * Retorna NOTA_FISCAL com array de profissionais em cada NF
+ */
+function routerGetNotaFiscalCombined() {
+  return _route(() => {
+    const nfs = fetchAll(ALLOWED_SHEETS.NOTA_FISCAL);
+    const ana = fetchAll(ALLOWED_SHEETS.NOTA_FISCAL_ANALITICO);
+
+    // Criar índice de NOTA_FISCAL_ANALITICO por NOME_FANTASIA + NFE
+    const analiticoIndex = {};
+    ana.forEach(row => {
+      const key = (row.nome_fantasia || '') + '|' + (row.nfe || '');
+      if (!analiticoIndex[key]) analiticoIndex[key] = [];
+      analiticoIndex[key].push(row);
+    });
+
+    // Combinar dados
+    const combined = nfs.map(nf => {
+      const key = (nf.nome_fantasia || '') + '|' + (nf.nfe || '');
+      const profissionais = analiticoIndex[key] || [];
+      
+      return Object.assign({}, nf, {
+        profissionais: profissionais
+      });
+    });
+
+    return { data: combined };
+  });
+}
