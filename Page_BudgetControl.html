@@ -109,6 +109,43 @@
   white-space: nowrap;
 }
 
+.bc-mes-ref-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.bc-mes-ref-wrap label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--c-outline);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bc-mes-ref-wrap select {
+  font-size: 0.8125rem;
+  font-family: 'DM Mono', monospace;
+  color: var(--c-on-surface);
+  background: var(--c-surface-cont-low);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--t-fast);
+}
+
+.bc-mes-ref-wrap select:focus {
+  border-color: var(--c-primary);
+}
+
+.bc-thead-ref th {
+  background: color-mix(in srgb, var(--c-tertiary, #d97706) 10%, var(--c-surface-cont-low)) !important;
+  color: var(--c-tertiary, #d97706) !important;
+}
+
 .bc-table-wrap {
   overflow-x: auto;
   border-radius: var(--border-radius-md);
@@ -330,6 +367,10 @@
       <span class="material-symbols-rounded" style="font-size:18px;color:var(--c-outline);flex-shrink:0">search</span>
       <input id="bc-search" type="text" placeholder="Buscar iniciativa ou código...">
     </div>
+    <div class="bc-mes-ref-wrap">
+      <label for="bc-mes-ref">Mês ref.:</label>
+      <select id="bc-mes-ref"><option value="">Carregando...</option></select>
+    </div>
     <span id="bc-count-label" class="bc-count-label">— iniciativas</span>
   </div>
 
@@ -355,7 +396,8 @@ window.BudgetControl = (function () {
   var _inited    = false;
   var _loaded    = false;
   var _search    = '';
-  var _filterIni = [];  // active initiative filter from Card_Filter
+  var _filterIni   = [];  // active initiative filter from Card_Filter
+  var _mesReferencia = '';  // label "jan.-26" do mês de referência para Forecast Ajustado
 
   var TIPO_ORDER = ['Forecast', 'Realizado', 'Resultado', 'Forecast Ajustado'];
   var TIPO_ITEMS = { 'Forecast': 'A', 'Realizado': 'B', 'Resultado': 'A-B=C', 'Forecast Ajustado': 'FA' };
@@ -515,9 +557,13 @@ window.BudgetControl = (function () {
     var html = '<tr>';
     html += '<th style="left:0;min-width:140px;max-width:140px;">Tipo</th>';
     html += '<th style="left:140px;min-width:80px;max-width:80px;">Item</th>';
-    html += '<th style="text-align:right;min-width:110px;">Projeção 2026</th>';
+    html += '<th style="text-align:right;min-width:110px;">Projeção</th>';
     _months.forEach(function (m) {
-      html += '<th style="min-width:92px;">' + m + '</th>';
+      var isRef = m === _mesReferencia;
+      var extra = isRef
+        ? ' style="min-width:92px;background:color-mix(in srgb,#d97706 14%,var(--c-surface-cont-low));color:#d97706;border-bottom:3px solid #d97706;"'
+        : ' style="min-width:92px;"';
+      html += '<th' + extra + '>' + m + (isRef ? ' ◀' : '') + '</th>';
     });
     html += '</tr>';
     return html;
@@ -645,9 +691,19 @@ window.BudgetControl = (function () {
     if (chv) chv.classList.toggle('collapsed', !!_collapsed[gId]);
   }
 
+  function _updateMesRefSelector(months, selected) {
+    var sel = document.getElementById('bc-mes-ref');
+    if (!sel) return;
+    var html = months.map(function (m) {
+      return '<option value="' + m + '"' + (m === selected ? ' selected' : '') + '>' + m + '</option>';
+    }).join('');
+    sel.innerHTML = html || '<option value="">—</option>';
+  }
+
   function _load() {
     var tbody = document.getElementById('bc-tbody');
     if (tbody) tbody.innerHTML = '<tr><td class="bc-placeholder">Carregando dados de forecast...</td></tr>';
+    if (window.SyncMonitor) SyncMonitor.update('loading', 'Carregando forecast...');
 
     var t0 = Date.now();
     google.script.run
@@ -659,9 +715,11 @@ window.BudgetControl = (function () {
           if (tbody) tbody.innerHTML = '<tr><td class="bc-placeholder">Erro ao carregar dados: ' + msg + '</td></tr>';
           return;
         }
-        console.log('[BudgetControl] resposta:', JSON.stringify({ rows: (res.rows||[]).length, months: res.months }));
+        console.log('[BudgetControl] resposta:', JSON.stringify({ rows: (res.rows||[]).length, months: res.months, mesRef: res.mesReferencia }));
         _rawRows = res.rows || [];
         _months  = res.months || [];
+        if (res.mesReferencia) _mesReferencia = res.mesReferencia;
+        _updateMesRefSelector(_months, _mesReferencia);
         _groups  = _buildGroups(_rawRows);
         _render();
       })
@@ -670,7 +728,7 @@ window.BudgetControl = (function () {
         var tbody = document.getElementById('bc-tbody');
         if (tbody) tbody.innerHTML = '<tr><td class="bc-placeholder">Erro: ' + (e && e.message ? e.message : String(e)) + '</td></tr>';
       })
-      .routerGetForecastData();
+      .routerGetForecastData(_mesReferencia);
   }
 
   function init() {
@@ -678,6 +736,12 @@ window.BudgetControl = (function () {
     _inited = true;
 
     document.getElementById('bc-refresh').addEventListener('click', function () {
+      _loaded = false;
+      _load();
+    });
+
+    document.getElementById('bc-mes-ref').addEventListener('change', function (e) {
+      _mesReferencia = e.target.value;
       _loaded = false;
       _load();
     });

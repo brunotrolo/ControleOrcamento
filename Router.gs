@@ -457,72 +457,60 @@ function routerGetFilterValues(sheetName, fieldKeys) {
 // --------------------------------------------------------------------------
 
 /**
- * GET — Lê a aba FORECAST e retorna linhas estruturadas + lista de meses.
- * Usa detecção semântica para localizar colunas (INIBANK, INICIATIVA, Tipo,
- * ITEM, Projeção) independentemente do nome exato do cabeçalho.
- * Detecta meses como Date objects OU texto em vários formatos.
- * Retorna campos padronizados: inibank, iniciativa, tipo, item, projecao_2026.
+ * GET — Retorna dados completos do controle orçamentário com 4 tipos por iniciativa:
+ *   Forecast (aba FORECAST), Realizado (aba NOTA_FISCAL),
+ *   Resultado (Forecast − Realizado), Forecast Ajustado (saldo distribuído nos meses restantes).
+ * mesReferencia: label "jan.-26" indicando o mês de corte para FA.
+ *   Se omitido, auto-detecta o último mês com Realizado.
  */
-function routerGetForecastData() {
+function routerGetForecastData(mesReferencia) {
   return _route(() => {
-    const { sheet } = _openSheet(ALLOWED_SHEETS.FORECAST);
-
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    if (lastRow < 2) return { rows: [], months: [] };
-
-    const raw     = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-    const headers = raw[0];
-
     const PTR_MON = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
-    // Normaliza string removendo acentos, lowercase, sem espaços/símbolos
     function _nk(s) {
       if (s instanceof Date || s == null) return '';
       return String(s).trim()
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/\s+/g, '_')
         .replace(/[^\w]/g, '');
     }
 
-    // Tenta extrair label de mês a partir de um valor de cabeçalho
+    function _num(v) {
+      if (typeof v === 'number') return v;
+      if (!v || v instanceof Date) return 0;
+      return parseFloat(
+        String(v).replace(/R\$\s*/g, '').replace(/\s/g, '')
+          .replace(/\./g, '').replace(',', '.')
+      ) || 0;
+    }
+
     function _monthLabel(h) {
       if (h instanceof Date) {
         return PTR_MON[h.getMonth()] + '.-' + String(h.getFullYear()).slice(-2);
       }
       const k = _nk(h);
       if (!k) return null;
-
-      // "jan26", "jan_26" (normalizado de "jan.-26", "jan/26", etc.)
       const m1 = k.match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\D*(\d{2})$/);
       if (m1) return m1[1] + '.-' + m1[2];
-
-      // "01_2026" ou "012026" (normalizado de "01/2026" ou "01-2026")
       const m2 = k.match(/^(\d{1,2})\D?(\d{4})$/);
-      if (m2) {
-        const mo = parseInt(m2[1]) - 1;
-        if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m2[2]).slice(-2);
-      }
-
-      // "20260101..." (YYYYMMDD ou YYYYMMDDHHMMSS — normalizado de "2026-01-01 00:00:00")
+      if (m2) { const mo = parseInt(m2[1]) - 1; if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m2[2]).slice(-2); }
       const m4 = k.match(/^(\d{4})(\d{2})\d{2,}$/);
-      if (m4) {
-        const mo = parseInt(m4[2]) - 1;
-        if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m4[1]).slice(-2);
-      }
-
-      // "2026_01" ou "202601" (normalizado de "2026/01" ou "2026-01")
+      if (m4) { const mo = parseInt(m4[2]) - 1; if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m4[1]).slice(-2); }
       const m3 = k.match(/^(\d{4})\D?(\d{1,2})$/);
-      if (m3) {
-        const mo = parseInt(m3[2]) - 1;
-        if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m3[1]).slice(-2);
-      }
-
+      if (m3) { const mo = parseInt(m3[2]) - 1; if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m3[1]).slice(-2); }
       return null;
     }
 
-    // Classifica cada coluna
+    // ── Lê aba FORECAST ──────────────────────────────────────────────────
+    const { sheet } = _openSheet(ALLOWED_SHEETS.FORECAST);
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    if (lastRow < 2) return { rows: [], months: [], mesReferencia: '' };
+
+    const raw     = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    const headers = raw[0];
+
     const cols = headers.map((h, i) => {
       const mLabel = _monthLabel(h);
       if (mLabel) return { kind: 'month', label: mLabel, i };
@@ -534,56 +522,20 @@ function routerGetForecastData() {
     const months = cols.filter(c => c.kind === 'month').map(c => c.label);
     const fields  = cols.filter(c => c.kind === 'field');
 
-    // Localiza coluna por lista de padrões (string exata ou RegExp)
     function _findCol(...patterns) {
       return fields.find(c => patterns.some(p =>
         typeof p === 'string' ? c.key === p : p.test(c.key)
       ));
     }
 
-    // Detecção semântica de colunas — padrões listados do mais específico ao mais genérico.
-    // C_INI busca o CÓDIGO da iniciativa (ex: "INIBANK-54").
-    // Inclui /^iniciativa$/ pois a aba FORECAST pode usar "INICIATIVA" para o código.
     const C_INI  = _findCol(/inibank/, /ini_bank/, /^codigo$/, /^cod$/, /^cod_ini/, /^ini$/, /^iniciativa$/);
-
-    // C_DESC busca a DESCRIÇÃO da iniciativa.
-    // Padrões explícitos como "iniciativa_descricao" têm prioridade sobre a regex genérica /iniciativa/.
-    // Isso evita conflito quando "INICIATIVA" é o código e "INICIATIVA_DESCRICAO" é a descrição.
     const C_DESC = _findCol(
       'iniciativa_descricao', 'descricao_iniciativa', 'nome_iniciativa',
       /iniciativa_desc/, /descricao_iniciativa/, /^descricao$/, /descr_ini/,
       /projeto/, /nome_projeto/, /iniciativa/
     );
-
-    // C_TIPO busca o tipo da linha (Forecast, Realizado, etc.).
-    // Inclui /tipo$/ para detectar colunas como "INICIATIVA_TIPO".
-    const C_TIPO = _findCol('tipo', /^iniciativa_tipo$/, /tipo$/, /^tipo/, 'type', 'categoria', 'natureza');
-
-    // C_ITEM busca o código/item da linha (A, B, A-B=C).
     const C_ITEM = _findCol('item', 'letra', 'codigo_tipo', 'cod_tipo', /direcao/, /item$/);
-
-    // C_PROJ busca a coluna de projeção anual total.
     const C_PROJ = _findCol(/^projecao/, /^projec/, /^total_forecast$/, /^orcamento/, /^budget/, /^total/);
-
-    Logger.log('[ForecastData] months=' + JSON.stringify(months));
-    Logger.log('[ForecastData] cols detected: inibank=' + (C_INI && C_INI.rawHeader) +
-               ' iniciativa=' + (C_DESC && C_DESC.rawHeader) +
-               ' tipo=' + (C_TIPO && C_TIPO.rawHeader) +
-               ' item=' + (C_ITEM && C_ITEM.rawHeader) +
-               ' projecao=' + (C_PROJ && C_PROJ.rawHeader));
-
-    if (!C_INI)  Logger.log('[ForecastData] AVISO: coluna INIBANK não detectada — iniciativas serão agrupadas como "—"');
-    if (!C_TIPO) Logger.log('[ForecastData] AVISO: coluna Tipo não detectada — classificação de linhas falhará');
-    if (months.length === 0) Logger.log('[ForecastData] AVISO: nenhuma coluna mensal detectada');
-
-    function _num(v) {
-      if (typeof v === 'number') return v;
-      if (!v || v instanceof Date) return 0;
-      return parseFloat(
-        String(v).replace(/R\$\s*/g, '').replace(/\s/g, '')
-          .replace(/\./g, '').replace(',', '.')
-      ) || 0;
-    }
 
     function _str(col) {
       if (!col) return function() { return ''; };
@@ -595,13 +547,19 @@ function routerGetForecastData() {
 
     const getIni  = _str(C_INI);
     const getDesc = _str(C_DESC);
-    const getTipo = _str(C_TIPO);
     const getItem = _str(C_ITEM);
 
-    const rows = [];
+    // forecastMap: { inibank → { desc, item, monthly: {label→val}, projecao } }
+    const forecastMap = {};
+    const inibankOrder = [];
+
     for (let r = 1; r < raw.length; r++) {
       const row = raw[r];
       if (row.every(v => v === '' || v === null || v === undefined)) continue;
+
+      const inibank = getIni(row) || '—';
+      const desc    = getDesc(row);
+      const item    = getItem(row);
 
       const monthly = {};
       cols.filter(c => c.kind === 'month').forEach(c => { monthly[c.label] = _num(row[c.i]); });
@@ -609,22 +567,132 @@ function routerGetForecastData() {
       let projecao = C_PROJ ? _num(row[C_PROJ.i]) : 0;
       if (projecao === 0) projecao = Object.values(monthly).reduce((s, v) => s + v, 0);
 
-      rows.push({
-        inibank:       getIni(row),
-        iniciativa:    getDesc(row),
-        tipo:          getTipo(row),
-        item:          getItem(row),
-        projecao_2026: projecao,
-        _monthly:      monthly,
-      });
+      if (!forecastMap[inibank]) {
+        forecastMap[inibank] = { desc: desc || '', item: item || '', monthly: monthly, projecao: projecao };
+        inibankOrder.push(inibank);
+      } else {
+        months.forEach(m => {
+          forecastMap[inibank].monthly[m] = (forecastMap[inibank].monthly[m] || 0) + (monthly[m] || 0);
+        });
+        forecastMap[inibank].projecao += projecao;
+        if (!forecastMap[inibank].desc && desc) forecastMap[inibank].desc = desc;
+      }
     }
 
-    Logger.log('[ForecastData] total linhas lidas: ' + rows.length +
-               (rows[0] ? ' | primeira: inibank=' + rows[0].inibank + ' tipo=' + rows[0].tipo : ''));
+    Logger.log('[ForecastData] FORECAST: ' + inibankOrder.length + ' iniciativas, meses=' + months.length);
 
-    return { rows, months };
+    // ── Lê aba NOTA_FISCAL → agrega Realizado por inibank + mês ─────────
+    const nfRows = fetchAll(ALLOWED_SHEETS.NOTA_FISCAL);
+
+    // realizadoMap: { inibank → { monthly: {label→val} } }
+    const realizadoMap = {};
+    const lastRealMonth = { label: '', idx: -1, year: 0 };
+
+    nfRows.forEach(r => {
+      if ((r.status_nfe || '').trim() !== 'Autorizada') return;
+      const inibank = String(r.iniciativa || '').trim();
+      if (!inibank) return;
+      const comp = String(r.competencia || '').trim();  // "MM/yyyy"
+      const val  = _num(r.total_nfe);
+      if (!val) return;
+
+      const parts = comp.match(/^(\d{1,2})\/(\d{4})$/);
+      if (!parts) return;
+      const mo    = parseInt(parts[1]) - 1;
+      const yr    = parseInt(parts[2]);
+      const label = PTR_MON[mo] + '.-' + String(yr).slice(-2);
+
+      if (!realizadoMap[inibank]) realizadoMap[inibank] = { monthly: {} };
+      realizadoMap[inibank].monthly[label] = (realizadoMap[inibank].monthly[label] || 0) + val;
+
+      const absIdx = yr * 12 + mo;
+      if (absIdx > lastRealMonth.idx) {
+        lastRealMonth.idx   = absIdx;
+        lastRealMonth.label = label;
+        lastRealMonth.year  = yr;
+      }
+    });
+
+    Logger.log('[ForecastData] NOTA_FISCAL: ' + Object.keys(realizadoMap).length + ' iniciativas com realizado');
+
+    // ── Resolve mesReferencia ─────────────────────────────────────────────
+    let mesRef = String(mesReferencia || '').trim();
+    if (!mesRef && lastRealMonth.label) mesRef = lastRealMonth.label;
+    if (!mesRef && months.length > 0)   mesRef = months[0];
+
+    (function normMesRef() {
+      const k = _nk(mesRef);
+      const m1 = k.match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\D*(\d{2})$/);
+      if (m1) { mesRef = m1[1] + '.-' + m1[2]; return; }
+      const m2 = k.match(/^(\d{1,2})\D?(\d{4})$/);
+      if (m2) { const mo = parseInt(m2[1]) - 1; if (mo >= 0 && mo <= 11) { mesRef = PTR_MON[mo] + '.-' + String(m2[2]).slice(-2); return; } }
+    })();
+
+    const monthIdx = {};
+    months.forEach((m, i) => { monthIdx[m] = i; });
+    const refIdx = monthIdx[mesRef] !== undefined ? monthIdx[mesRef] : -1;
+
+    function _yearOfLabel(label) {
+      const m = label.match(/\.-(\d{2})$/);
+      return m ? parseInt('20' + m[1]) : 0;
+    }
+    const refYear = _yearOfLabel(mesRef);
+
+    Logger.log('[ForecastData] mesRef=' + mesRef + ' refIdx=' + refIdx + ' refYear=' + refYear);
+
+    // ── Monta rows com 4 tipos por iniciativa ────────────────────────────
+    const rows = [];
+
+    inibankOrder.forEach(inibank => {
+      const fData = forecastMap[inibank];
+      const rData = realizadoMap[inibank] || { monthly: {} };
+
+      const fMonthly = fData.monthly;
+
+      const rMonthly = {};
+      months.forEach(m => { rMonthly[m] = rData.monthly[m] || 0; });
+
+      const resMonthly = {};
+      months.forEach(m => { resMonthly[m] = (fMonthly[m] || 0) - (rMonthly[m] || 0); });
+
+      const fProj   = months.reduce((s, m) => s + (fMonthly[m] || 0), 0);
+      const rProj   = months.reduce((s, m) => s + (rMonthly[m] || 0), 0);
+      const resProj = fProj - rProj;
+
+      const rAteRef = months.reduce((s, m, i) => {
+        if (i <= refIdx) s += (rMonthly[m] || 0);
+        return s;
+      }, 0);
+      const saldo = fProj - rAteRef;
+
+      const futureMonths = months.filter((m, i) => {
+        return i > refIdx && _yearOfLabel(m) === refYear;
+      });
+      const nFuture = futureMonths.length;
+
+      const faMonthly = {};
+      months.forEach(m => { faMonthly[m] = 0; });
+      if (saldo > 0 && nFuture > 0) {
+        const perMonth = saldo / nFuture;
+        futureMonths.forEach(m => { faMonthly[m] = perMonth; });
+      }
+      const faProj = months.reduce((s, m) => s + faMonthly[m], 0);
+
+      rows.push(
+        { inibank, iniciativa: fData.desc, tipo: 'Forecast',          item: 'A',     projecao_2026: fProj,   _monthly: fMonthly   },
+        { inibank, iniciativa: fData.desc, tipo: 'Realizado',         item: 'B',     projecao_2026: rProj,   _monthly: rMonthly   },
+        { inibank, iniciativa: fData.desc, tipo: 'Resultado',         item: 'A-B=C', projecao_2026: resProj, _monthly: resMonthly },
+        { inibank, iniciativa: fData.desc, tipo: 'Forecast Ajustado', item: 'FA',    projecao_2026: faProj,  _monthly: faMonthly  }
+      );
+    });
+
+    Logger.log('[ForecastData] rows geradas: ' + rows.length + ' mesRef=' + mesRef);
+
+    return { rows, months, mesReferencia: mesRef };
   });
 }
+
+
 
 function routerGetNotaFiscalCombined() {
   return _route(() => {
