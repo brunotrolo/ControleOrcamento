@@ -363,11 +363,12 @@ window.BudgetControl = (function () {
 
   function _normTipo(t) {
     var s = String(t || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    if (s.includes('ajust') || s.includes('fa') && s.includes('forecast')) return 'Forecast Ajustado';
-    if (s === 'fa' || s === '5') return 'Forecast Ajustado';
+    var clean = s.replace(/\s/g, '');
+    if (s.includes('ajust') || (s.includes('fa') && s.includes('forecast'))) return 'Forecast Ajustado';
+    if (s === 'fa' || s === '5' || s === '6') return 'Forecast Ajustado';
     if (s.includes('forecast') || s === 'a') return 'Forecast';
     if (s.includes('realiz') || s === 'b') return 'Realizado';
-    if (s.includes('result') || s.includes('saldo') || s === 'c' || s === 'a-b=c') return 'Resultado';
+    if (s.includes('result') || s.includes('saldo') || clean === 'a-b=c') return 'Resultado';
     return String(t || '').trim();
   }
 
@@ -418,7 +419,7 @@ window.BudgetControl = (function () {
         projecao = Object.values(r._monthly || {}).reduce(function (s, v) { return s + _R(v); }, 0);
       }
 
-      map[key].tipoRows[tipo] = { projecao: projecao, monthly: r._monthly || {} };
+      map[key].tipoRows[tipo] = { projecao: projecao, monthly: r._monthly || {}, item: String(r.item || '').trim() };
     });
 
     // Compute Resultado if not present
@@ -576,7 +577,7 @@ window.BudgetControl = (function () {
       var row = g.tipoRows[tipo];
       if (!row) return;
       var badgeCls = TIPO_BADGE[tipo] || '';
-      var item     = TIPO_ITEMS[tipo] || '';
+      var item     = row.item || TIPO_ITEMS[tipo] || '';
 
       html += '<tr class="bc-tipo-row' + hidCls + '" data-gid="' + gId + '">';
       html += '<td><span class="bc-tipo-badge ' + badgeCls + '">' + _esc(tipo) + '</span></td>';
