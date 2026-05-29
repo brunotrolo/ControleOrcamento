@@ -494,7 +494,7 @@ function routerGetForecastData() {
       const k = _nk(h);
       if (!k) return null;
 
-      // "jan26", "jan_26", "jan26" (normalizado de "jan.-26", "jan/26", etc.)
+      // "jan26", "jan_26" (normalizado de "jan.-26", "jan/26", etc.)
       const m1 = k.match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\D*(\d{2})$/);
       if (m1) return m1[1] + '.-' + m1[2];
 
@@ -505,7 +505,14 @@ function routerGetForecastData() {
         if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m2[2]).slice(-2);
       }
 
-      // "20260[1]" (normalizado de "2026/01" ou "2026-01")
+      // "20260101..." (YYYYMMDD ou YYYYMMDDHHMMSS — normalizado de "2026-01-01 00:00:00")
+      const m4 = k.match(/^(\d{4})(\d{2})\d{2,}$/);
+      if (m4) {
+        const mo = parseInt(m4[2]) - 1;
+        if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m4[1]).slice(-2);
+      }
+
+      // "2026_01" ou "202601" (normalizado de "2026/01" ou "2026-01")
       const m3 = k.match(/^(\d{4})\D?(\d{1,2})$/);
       if (m3) {
         const mo = parseInt(m3[2]) - 1;
@@ -534,11 +541,29 @@ function routerGetForecastData() {
       ));
     }
 
-    const C_INI  = _findCol(/inibank/, /ini_bank/, /^codigo$/, /^cod$/, /^cod_ini/, /^ini$/);
-    const C_DESC = _findCol(/iniciativa/, /descricao_iniciativa/, /^descricao$/, /descr/, /projeto/, /nome_projeto/);
-    const C_TIPO = _findCol('tipo', 'type', 'categoria', 'natureza');
-    const C_ITEM = _findCol('item', 'letra', 'codigo_tipo', 'cod_tipo');
-    const C_PROJ = _findCol(/^projecao/, /^projec/, /^orcamento/, /^budget/, /^total/);
+    // Detecção semântica de colunas — padrões listados do mais específico ao mais genérico.
+    // C_INI busca o CÓDIGO da iniciativa (ex: "INIBANK-54").
+    // Inclui /^iniciativa$/ pois a aba FORECAST pode usar "INICIATIVA" para o código.
+    const C_INI  = _findCol(/inibank/, /ini_bank/, /^codigo$/, /^cod$/, /^cod_ini/, /^ini$/, /^iniciativa$/);
+
+    // C_DESC busca a DESCRIÇÃO da iniciativa.
+    // Padrões explícitos como "iniciativa_descricao" têm prioridade sobre a regex genérica /iniciativa/.
+    // Isso evita conflito quando "INICIATIVA" é o código e "INICIATIVA_DESCRICAO" é a descrição.
+    const C_DESC = _findCol(
+      'iniciativa_descricao', 'descricao_iniciativa', 'nome_iniciativa',
+      /iniciativa_desc/, /descricao_iniciativa/, /^descricao$/, /descr_ini/,
+      /projeto/, /nome_projeto/, /iniciativa/
+    );
+
+    // C_TIPO busca o tipo da linha (Forecast, Realizado, etc.).
+    // Inclui /tipo$/ para detectar colunas como "INICIATIVA_TIPO".
+    const C_TIPO = _findCol('tipo', /^iniciativa_tipo$/, /tipo$/, /^tipo/, 'type', 'categoria', 'natureza');
+
+    // C_ITEM busca o código/item da linha (A, B, A-B=C).
+    const C_ITEM = _findCol('item', 'letra', 'codigo_tipo', 'cod_tipo', /direcao/, /item$/);
+
+    // C_PROJ busca a coluna de projeção anual total.
+    const C_PROJ = _findCol(/^projecao/, /^projec/, /^total_forecast$/, /^orcamento/, /^budget/, /^total/);
 
     Logger.log('[ForecastData] months=' + JSON.stringify(months));
     Logger.log('[ForecastData] cols detected: inibank=' + (C_INI && C_INI.rawHeader) +
