@@ -403,6 +403,55 @@ function routerGetNotaFiscalAnalitico() {
  * Relaciona por NOME_FANTASIA + NFE
  * Retorna NOTA_FISCAL com array de profissionais em cada NF
  */
+// --------------------------------------------------------------------------
+// FILTER VALUES
+// --------------------------------------------------------------------------
+
+/**
+ * GET — Retorna valores únicos para cada campo de filtro de uma aba.
+ * Usado pelo Card_Filter para popular os picklists.
+ * @param {string} sheetName - nome da aba autorizada
+ * @param {string[]} fieldKeys - chaves das colunas a extrair valores únicos
+ */
+function routerGetFilterValues(sheetName, fieldKeys) {
+  return _route(() => {
+    _assertAllowed(sheetName);
+    const data = fetchAll(sheetName);
+
+    const filterValues = {};
+    const seen = {};
+    fieldKeys.forEach(key => {
+      filterValues[key] = [];
+      seen[key] = new Set();
+    });
+
+    data.forEach(row => {
+      fieldKeys.forEach(key => {
+        const val = String(row[key] || '').trim();
+        if (val && !seen[key].has(val)) {
+          seen[key].add(val);
+          filterValues[key].push(val);
+        }
+      });
+    });
+
+    // Competência: ordena decrescente (mais recente primeiro); demais: A-Z
+    fieldKeys.forEach(key => {
+      if (key === 'competencia') {
+        filterValues[key].sort((a, b) => {
+          const pa = a.split('/').map(Number);
+          const pb = b.split('/').map(Number);
+          return pa[1] !== pb[1] ? pb[1] - pa[1] : pb[0] - pa[0];
+        });
+      } else {
+        filterValues[key].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      }
+    });
+
+    return { filterValues };
+  });
+}
+
 function routerGetNotaFiscalCombined() {
   return _route(() => {
     const nfs = fetchAll(ALLOWED_SHEETS.NOTA_FISCAL);

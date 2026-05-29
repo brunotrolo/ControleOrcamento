@@ -1,8 +1,173 @@
 <!--
-  Page_Home.html - Página inicial
+  Page_Home.html - Dashboard Gerencial de Controle Orçamentário
 -->
 
-<div id="view-home-content"></div>
+<style>
+.home-section-mt { margin-top: 20px; }
+
+.home-two-col {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.home-two-col-eq {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .home-two-col,
+  .home-two-col-eq { grid-template-columns: 1fr; }
+}
+
+.home-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.home-table th {
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-on-surface-variant);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--c-outline-variant);
+  white-space: nowrap;
+}
+
+.home-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--c-outline-variant);
+  color: var(--c-on-surface);
+  font-size: 0.8rem;
+  vertical-align: middle;
+}
+
+.home-table tbody tr:last-child td { border-bottom: none; }
+.home-table tbody tr:hover td { background: var(--c-surface-cont-low); }
+
+.home-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.home-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+</style>
+
+<div id="view-home-content">
+
+  <!-- Row 1: Evolução Mensal + Distribuição por Iniciativa -->
+  <div id="home-row1" class="home-two-col" style="display:none;">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>Evolução Mensal de Custos</h3>
+          <div class="card-subtitle">Custo realizado (NFs autorizadas) por competência</div>
+        </div>
+        <span class="material-symbols-rounded" style="color:var(--c-primary);font-size:20px;">trending_up</span>
+      </div>
+      <div id="home-chart-evolucao" style="min-height:190px;">
+        <div style="padding:32px;text-align:center;color:var(--c-outline);">Carregando...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>Distribuição por Iniciativa</h3>
+          <div class="card-subtitle">Participação percentual no total realizado</div>
+        </div>
+        <span class="material-symbols-rounded" style="color:#10b981;font-size:20px;">donut_small</span>
+      </div>
+      <div id="home-chart-iniciativas" style="min-height:190px;">
+        <div style="padding:32px;text-align:center;color:var(--c-outline);">Carregando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Próximos Vencimentos + NFs Vencidas -->
+  <div id="home-row2" class="home-two-col-eq" style="display:none;">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>Próximos Vencimentos</h3>
+          <div class="card-subtitle">NFs autorizadas vencendo nos próximos 30 dias</div>
+        </div>
+        <span class="material-symbols-rounded" style="color:var(--c-warning);font-size:20px;">event_upcoming</span>
+      </div>
+      <div id="home-vencimentos" style="overflow-x:auto;"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>NFs Vencidas</h3>
+          <div class="card-subtitle">Autorizadas com data de vencimento expirada</div>
+        </div>
+        <span class="material-symbols-rounded" style="color:var(--c-error);font-size:20px;">warning</span>
+      </div>
+      <div id="home-vencidas" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
+  <!-- Row 3: Ranking Iniciativas + Ranking Fornecedores -->
+  <div id="home-row3" class="home-two-col-eq" style="display:none;">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>Ranking de Iniciativas</h3>
+          <div class="card-subtitle">Ordenado por valor total realizado</div>
+        </div>
+        <span class="material-symbols-rounded" style="color:#6366f1;font-size:20px;">leaderboard</span>
+      </div>
+      <div id="home-iniciativas" style="overflow-x:auto;"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>Ranking de Fornecedores</h3>
+          <div class="card-subtitle">Ordenado por valor total faturado</div>
+        </div>
+        <span class="material-symbols-rounded" style="color:#f59e0b;font-size:20px;">business</span>
+      </div>
+      <div id="home-fornecedores" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
+  <!-- Row 4: Profissionais Alocados (full width) -->
+  <div id="home-row4" class="home-section-mt" style="display:none;">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>Profissionais Alocados</h3>
+          <div class="card-subtitle">Dados das notas fiscais analíticas — top 15 por valor faturado</div>
+        </div>
+        <span class="material-symbols-rounded" style="color:#8b5cf6;font-size:20px;">groups</span>
+      </div>
+      <div id="home-profissionais" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
+</div>
 
 <script>
 (function() {
@@ -12,113 +177,437 @@
 
   function R(n) { return Math.round((parseFloat(n)||0)*100)/100; }
   function BRL(n) { return R(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+  function E(v) { return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  var _meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+  var _MN = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  var _CL = ['#6366f1','#10b981','#f59e0b','#06b6d4','#f43f5e','#8b5cf6','#ec4899','#84cc16','#14b8a6','#f97316'];
 
-  function _formatCompetencia(val) {
+  function _fmtComp(val) {
     var m = String(val).match(/(\d{2})\/(\d{4})/);
-    if (m) {
-      var mes = parseInt(m[1]);
-      var mesNome = _meses[mes - 1] || m[1];
-      return mesNome + '/' + m[2];
-    }
+    if (m) return (_MN[parseInt(m[1])-1]||m[1])+'/'+m[2];
     return val;
   }
 
   function applyFilters(data, filters) {
-    if (!filters || Object.keys(filters).every(function(k) { var v = filters[k]; return !v || v.length === 0; })) {
-      return data;
-    }
+    if (!filters || Object.keys(filters).every(function(k){var v=filters[k];return !v||v.length===0;})) return data;
     return data.filter(function(row) {
-      return Object.keys(filters).every(function(filterKey) {
-        var vals = filters[filterKey];
-        if (!vals || vals.length === 0) return true;
-        
-        var colName = filterKey;
-        var rowVal = String(row[colName] || '').trim();
-        
-        // Se for competência, converter o valor da linha também
-        if (filterKey === 'competencia') {
-          rowVal = _formatCompetencia(rowVal);
-        }
-        
-        return vals.some(function(v) { return rowVal === String(v).trim(); });
+      return Object.keys(filters).every(function(fk) {
+        var vals = filters[fk];
+        if (!vals||vals.length===0) return true;
+        var rv = String(row[fk]||'').trim();
+        if (fk==='competencia') rv = _fmtComp(rv);
+        return vals.some(function(v){return rv===String(v).trim();});
       });
     });
   }
 
+  // ── KPIs ─────────────────────────────────────────────────────────────
+
   function calcKpis(data) {
-    var tAuth = 0, nAuth = 0, tCanc = 0, nCanc = 0, tVen = 0, nVen = 0;
     var hoje = new Date();
+    var tA=0,nA=0,tC=0,nC=0,tV30=0,nV30=0,tVd=0,nVd=0;
+    var iniS={}, fornS={}, profS={};
+
     data.forEach(function(row) {
-      var s = (row.status_nfe || '').trim();
-      var v = R(row.total_nfe || 0);
-      var dv = row.data_vencimento;
-      var dias = null;
-      if (dv) {
-        var d = dv instanceof Date ? dv : new Date(dv);
-        if (!isNaN(d.getTime())) dias = Math.round((d.getTime() - hoje.getTime()) / 86400000);
-      }
-      if (s === 'Autorizada') {
-        tAuth = R(tAuth + v);
-        nAuth++;
-        if (dias !== null && dias >= 0 && dias <= 30) { tVen = R(tVen + v); nVen++; }
-      } else if (s === 'Cancelada') {
-        tCanc = R(tCanc + v);
-        nCanc++;
+      var s = (row.status_nfe||'').trim();
+      var v = R(row.total_nfe||0);
+      if (s==='Autorizada') {
+        tA=R(tA+v); nA++;
+        if (row.iniciativa) iniS[row.iniciativa]=1;
+        if (row.nome_fantasia) fornS[row.nome_fantasia]=1;
+        if (row.profissionais && Array.isArray(row.profissionais)) {
+          row.profissionais.forEach(function(p) {
+            if (p.nome_profissional && p.nome_profissional!=='-') profS[p.nome_profissional]=1;
+          });
+        }
+        var dv = row.data_vencimento;
+        if (dv) {
+          var d = dv instanceof Date ? dv : new Date(dv);
+          if (!isNaN(d)) {
+            var dd = Math.round((d-hoje)/86400000);
+            if (dd<0)          { tVd=R(tVd+v); nVd++; }
+            if (dd>=0&&dd<=30) { tV30=R(tV30+v); nV30++; }
+          }
+        }
+      } else if (s==='Cancelada') {
+        tC=R(tC+v); nC++;
       }
     });
+
     return {
-      tAuth: tAuth, nAuth: nAuth, tCanc: tCanc, nCanc: nCanc,
-      tVen: tVen, nVen: nVen, total: data.length
+      tA, nA, tC, nC, tV30, nV30, tVd, nVd,
+      nI: Object.keys(iniS).length,
+      nF: Object.keys(fornS).length,
+      nP: Object.keys(profS).length,
+      avg: nA>0 ? R(tA/nA) : 0,
+      total: data.length
     };
   }
 
   function updateKpis(kpis) {
-    if (typeof CardKPI !== 'undefined') {
-      CardKPI.update([
-        { key: 'total_autorizado', label: 'Total Autorizado', value: BRL(kpis.tAuth), sub: kpis.nAuth + ' NFs', accent: '#6366f1' },
-        { key: 'total_cancelado', label: 'Total Cancelado', value: BRL(kpis.tCanc), sub: kpis.nCanc + ' NFs', accent: '#f43f5e' },
-        { key: 'vencendo_30dias', label: 'Vencendo em 30 dias', value: BRL(kpis.tVen), sub: kpis.nVen + ' NFs', accent: '#f59e0b' },
-        { key: 'total_registros', label: 'Total de Registros', value: kpis.total, sub: 'Notas no período', accent: '#10b981' }
-      ]);
-    }
+    if (typeof CardKPI === 'undefined') return;
+    CardKPI.update([
+      { key:'total_autorizado', label:'Total Realizado',     value:BRL(kpis.tA),   sub:kpis.nA+' NFs autorizadas',  accent:'#6366f1' },
+      { key:'total_cancelado',  label:'Total Cancelado',     value:BRL(kpis.tC),   sub:kpis.nC+' NFs canceladas',   accent:'#f43f5e' },
+      { key:'vencendo_30dias',  label:'Vencendo em 30 dias', value:BRL(kpis.tV30), sub:kpis.nV30+' NFs',            accent:'#f59e0b' },
+      { key:'vencidas',         label:'NFs Vencidas',        value:BRL(kpis.tVd),  sub:kpis.nVd+' em atraso',       accent:'#ef4444' },
+      { key:'iniciativas',      label:'Iniciativas Ativas',  value:kpis.nI,         sub:'projetos com NFs',          accent:'#10b981' },
+      { key:'fornecedores',     label:'Fornecedores',        value:kpis.nF,         sub:'empresas contratadas',      accent:'#06b6d4' },
+      { key:'profissionais',    label:'Profissionais',       value:kpis.nP,         sub:'colaboradores alocados',    accent:'#8b5cf6' },
+      { key:'media_nf',         label:'Custo Médio / NF',   value:BRL(kpis.avg),  sub:'valor médio autorizado',    accent:'#ec4899' }
+    ]);
   }
+
+  // ── CHART: EVOLUÇÃO MENSAL ────────────────────────────────────────────
+
+  function renderEvolucao(data) {
+    var meses = {};
+    data.forEach(function(row) {
+      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+      var m = String(row.competencia||'').match(/(\d{2})\/(\d{4})/);
+      if (!m) return;
+      var k = m[2]+'-'+m[1];
+      if (!meses[k]) meses[k] = {mes:m[1],ano:m[2],total:0,qtd:0};
+      meses[k].total = R(meses[k].total+R(row.total_nfe||0));
+      meses[k].qtd++;
+    });
+    var sorted = Object.keys(meses).sort().map(function(k){return meses[k];});
+    var el = document.getElementById('home-chart-evolucao');
+    if (!el) return;
+    if (sorted.length===0) {
+      el.innerHTML='<div style="padding:32px;text-align:center;color:var(--c-outline);">Nenhum dado disponível</div>';
+      return;
+    }
+
+    var W=480, H=180, PL=56, PR=12, PT=12, PB=40;
+    var gW=W-PL-PR, gH=H-PT-PB;
+    var maxV = Math.max.apply(null, sorted.map(function(m){return m.total;}));
+    var rng = maxV || 1;
+    var xStep = sorted.length>1 ? gW/(sorted.length-1) : gW/2;
+    function px(i) { return PL+i*xStep; }
+    function py(v)  { return PT+gH-(v/rng*gH); }
+
+    var grid = '';
+    for (var gi=0; gi<=4; gi++) {
+      var gv = (maxV/4)*gi;
+      var gy = py(gv);
+      var lbl = gv>=1e6 ? (gv/1e6).toFixed(1)+'M' : gv>=1000 ? (gv/1000).toFixed(0)+'K' : gv.toFixed(0);
+      grid += '<line x1="'+PL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-PR)+'" y2="'+gy.toFixed(1)+'" stroke="var(--c-outline-variant)" stroke-width="1" stroke-dasharray="3,3"/>';
+      grid += '<text x="'+(PL-5)+'" y="'+(gy+4)+'" text-anchor="end" font-size="9" fill="var(--c-outline)" font-family="DM Mono,monospace">'+lbl+'</text>';
+    }
+
+    var pts = sorted.map(function(m,i) { return {x:px(i),y:py(m.total),m:m}; });
+    var pd  = pts.map(function(p,i) { return (i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1); }).join(' ');
+    var fd  = pd+' L '+pts[pts.length-1].x+' '+(PT+gH)+' L '+pts[0].x+' '+(PT+gH)+' Z';
+
+    var dots = pts.map(function(p) {
+      return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.5" fill="#6366f1" stroke="white" stroke-width="1.5">' +
+        '<title>'+(_MN[parseInt(p.m.mes)-1]||p.m.mes)+'/'+p.m.ano+': '+BRL(p.m.total)+' ('+p.m.qtd+' NFs)</title></circle>';
+    }).join('');
+
+    var lblStep = sorted.length > 12 ? 3 : sorted.length > 8 ? 2 : 1;
+    var lbls = pts.map(function(p,i) {
+      if (i%lblStep!==0 && i!==pts.length-1) return '';
+      var mn = _MN[parseInt(p.m.mes)-1]||p.m.mes;
+      return '<text x="'+p.x.toFixed(1)+'" y="'+(H-22)+'" text-anchor="middle" font-size="9" fill="var(--c-outline)" font-family="DM Sans,system-ui">'+mn+'</text>' +
+             '<text x="'+p.x.toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle" font-size="8" fill="var(--c-outline)" font-family="DM Sans,system-ui">'+p.m.ano+'</text>';
+    }).join('');
+
+    el.innerHTML = '<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs><linearGradient id="heg" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" style="stop-color:#6366f1;stop-opacity:.25"/>' +
+        '<stop offset="100%" style="stop-color:#6366f1;stop-opacity:.02"/>' +
+      '</linearGradient></defs>' +
+      grid +
+      '<path d="'+fd+'" fill="url(#heg)"/>' +
+      '<path d="'+pd+'" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      dots + lbls +
+      '</svg>';
+  }
+
+  // ── CHART: DISTRIBUIÇÃO INICIATIVAS (barras horizontais) ──────────────
+
+  function renderInicBar(data) {
+    var inis = {};
+    data.forEach(function(row) {
+      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+      var n = row.iniciativa||'N/A';
+      inis[n] = R((inis[n]||0)+R(row.total_nfe||0));
+    });
+    var sorted = Object.keys(inis).sort(function(a,b){return inis[b]-inis[a];}).slice(0,8);
+    var el = document.getElementById('home-chart-iniciativas');
+    if (!el) return;
+    if (sorted.length===0) {
+      el.innerHTML='<div style="padding:32px;text-align:center;color:var(--c-outline);">Nenhum dado</div>';
+      return;
+    }
+    var maxV   = inis[sorted[0]]||1;
+    var totalG = sorted.reduce(function(acc,k){return R(acc+inis[k]);},0);
+    var html   = '<div style="padding:4px 4px 8px;">';
+    sorted.forEach(function(nome,i) {
+      var v   = inis[nome];
+      var pct = (v/maxV*100).toFixed(0);
+      var pctTot = ((v/totalG)*100).toFixed(1);
+      var c   = _CL[i%_CL.length];
+      var lbl = nome.length>22 ? nome.substring(0,22)+'…' : nome;
+      html += '<div style="margin-bottom:11px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+          '<span style="font-size:0.72rem;color:var(--c-on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:155px;" title="'+E(nome)+'">'+E(lbl)+'</span>' +
+          '<span style="font-size:0.68rem;color:'+c+';font-weight:700;font-family:DM Mono,monospace;margin-left:6px;flex-shrink:0;">'+pctTot+'%</span>' +
+        '</div>' +
+        '<div style="height:7px;background:var(--c-surface-cont);border-radius:4px;overflow:hidden;">' +
+          '<div style="height:100%;width:'+pct+'%;background:'+c+';border-radius:4px;"></div>' +
+        '</div>' +
+        '</div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  // ── TABLE: PRÓXIMOS VENCIMENTOS ───────────────────────────────────────
+
+  function renderVencimentos(data) {
+    var hoje=new Date(), prox=[];
+    data.forEach(function(row) {
+      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+      var dv=row.data_vencimento; if (!dv) return;
+      var d=dv instanceof Date?dv:new Date(dv); if (isNaN(d)) return;
+      var dd=Math.round((d-hoje)/86400000);
+      if (dd>=0&&dd<=30) prox.push({
+        dataStr:d.toLocaleDateString('pt-BR'),
+        forn:row.nome_fantasia||'—', ini:row.iniciativa||'—',
+        nfe:row.nfe||'—', val:R(row.total_nfe||0), dias:dd
+      });
+    });
+    prox.sort(function(a,b){return a.dias-b.dias;});
+    var el=document.getElementById('home-vencimentos'); if (!el) return;
+    if (prox.length===0) {
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">check_circle</span><p>Sem vencimentos nos próximos 30 dias</p></div>';
+      return;
+    }
+    var h='<table class="home-table"><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Iniciativa</th><th style="text-align:right;">Valor</th><th>Prazo</th></tr></thead><tbody>';
+    prox.slice(0,10).forEach(function(v) {
+      var chipStyle = v.dias<=7
+        ? 'background:var(--c-error-cont);color:var(--c-error);'
+        : 'background:var(--c-warning-cont);color:var(--c-warning);';
+      var txt = v.dias===0 ? 'hoje' : v.dias+'d';
+      h += '<tr>' +
+        '<td class="col-mono" style="font-size:0.75rem;">'+E(v.dataStr)+'</td>' +
+        '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.forn)+'">'+E(v.forn)+'</td>' +
+        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.ini)+'">'+E(v.ini)+'</td>' +
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(v.val)+'</td>' +
+        '<td><span class="home-chip" style="'+chipStyle+'">'+E(txt)+'</span></td>' +
+        '</tr>';
+    });
+    h += '</tbody></table>';
+    if (prox.length>10) h += '<div style="padding:8px 10px;font-size:0.72rem;color:var(--c-outline);">+'+(prox.length-10)+' mais</div>';
+    el.innerHTML = h;
+  }
+
+  // ── TABLE: NFs VENCIDAS ───────────────────────────────────────────────
+
+  function renderVencidas(data) {
+    var hoje=new Date(), venc=[];
+    data.forEach(function(row) {
+      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+      var dv=row.data_vencimento; if (!dv) return;
+      var d=dv instanceof Date?dv:new Date(dv); if (isNaN(d)) return;
+      var dd=Math.round((d-hoje)/86400000);
+      if (dd<0) venc.push({
+        dataStr:d.toLocaleDateString('pt-BR'),
+        forn:row.nome_fantasia||'—', ini:row.iniciativa||'—',
+        val:R(row.total_nfe||0), dias:Math.abs(dd)
+      });
+    });
+    venc.sort(function(a,b){return b.dias-a.dias;});
+    var el=document.getElementById('home-vencidas'); if (!el) return;
+    if (venc.length===0) {
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">check_circle</span><p>Nenhuma NF vencida</p></div>';
+      return;
+    }
+    var h='<table class="home-table"><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Iniciativa</th><th style="text-align:right;">Valor</th><th>Atraso</th></tr></thead><tbody>';
+    venc.slice(0,10).forEach(function(v) {
+      h += '<tr>' +
+        '<td class="col-mono" style="font-size:0.75rem;">'+E(v.dataStr)+'</td>' +
+        '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.forn)+'">'+E(v.forn)+'</td>' +
+        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.ini)+'">'+E(v.ini)+'</td>' +
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(v.val)+'</td>' +
+        '<td><span class="home-chip" style="background:var(--c-error-cont);color:var(--c-error);">'+v.dias+'d atraso</span></td>' +
+        '</tr>';
+    });
+    h += '</tbody></table>';
+    if (venc.length>10) h += '<div style="padding:8px 10px;font-size:0.72rem;color:var(--c-outline);">+'+(venc.length-10)+' mais</div>';
+    el.innerHTML = h;
+  }
+
+  // ── TABLE: RANKING INICIATIVAS ────────────────────────────────────────
+
+  function renderIniciativas(data) {
+    var inis={};
+    data.forEach(function(row) {
+      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+      var n=row.iniciativa||'N/A', desc=row.iniciativa_descricao||'';
+      if (!inis[n]) inis[n]={total:0,qtd:0,desc:desc};
+      inis[n].total=R(inis[n].total+R(row.total_nfe||0)); inis[n].qtd++;
+    });
+    var sorted=Object.keys(inis).sort(function(a,b){return inis[b].total-inis[a].total;});
+    var el=document.getElementById('home-iniciativas'); if (!el) return;
+    if (sorted.length===0) {
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">folder_off</span><p>Sem dados de iniciativas</p></div>';
+      return;
+    }
+    var tot=sorted.reduce(function(acc,k){return R(acc+inis[k].total);},0);
+    var h='<table class="home-table"><thead><tr>' +
+      '<th>#</th><th>Iniciativa</th><th style="text-align:right;">NFs</th>' +
+      '<th style="text-align:right;">Total</th><th style="text-align:right;">Part.</th>' +
+      '</tr></thead><tbody>';
+    sorted.forEach(function(nome,i) {
+      var d=inis[nome], pct=((d.total/tot)*100).toFixed(1), c=_CL[i%_CL.length];
+      h += '<tr>' +
+        '<td><span class="home-rank-badge" style="background:'+c+';">'+(i+1)+'</span></td>' +
+        '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="'+E(nome)+(d.desc?' — '+d.desc:'')+'">'+E(nome)+'</td>' +
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+d.qtd+'</td>' +
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(d.total)+'</td>' +
+        '<td style="text-align:right;"><span style="font-size:0.7rem;font-weight:700;color:'+c+';">'+pct+'%</span></td>' +
+        '</tr>';
+    });
+    h += '</tbody></table>';
+    el.innerHTML = h;
+  }
+
+  // ── TABLE: RANKING FORNECEDORES ───────────────────────────────────────
+
+  function renderFornecedores(data) {
+    var forns={};
+    data.forEach(function(row) {
+      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+      var n=row.nome_fantasia||'N/A';
+      if (!forns[n]) forns[n]={total:0,qtd:0};
+      forns[n].total=R(forns[n].total+R(row.total_nfe||0)); forns[n].qtd++;
+    });
+    var sorted=Object.keys(forns).sort(function(a,b){return forns[b].total-forns[a].total;});
+    var el=document.getElementById('home-fornecedores'); if (!el) return;
+    if (sorted.length===0) {
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">business_off</span><p>Sem dados de fornecedores</p></div>';
+      return;
+    }
+    var tot=sorted.reduce(function(acc,k){return R(acc+forns[k].total);},0);
+    var h='<table class="home-table"><thead><tr>' +
+      '<th>#</th><th>Fornecedor</th><th style="text-align:right;">NFs</th>' +
+      '<th style="text-align:right;">Total</th><th style="text-align:right;">Part.</th>' +
+      '</tr></thead><tbody>';
+    sorted.forEach(function(nome,i) {
+      var d=forns[nome], pct=((d.total/tot)*100).toFixed(1), c=_CL[i%_CL.length];
+      h += '<tr>' +
+        '<td><span class="home-rank-badge" style="background:'+c+';">'+(i+1)+'</span></td>' +
+        '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="'+E(nome)+'">'+E(nome)+'</td>' +
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+d.qtd+'</td>' +
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(d.total)+'</td>' +
+        '<td style="text-align:right;"><span style="font-size:0.7rem;font-weight:700;color:'+c+';">'+pct+'%</span></td>' +
+        '</tr>';
+    });
+    h += '</tbody></table>';
+    el.innerHTML = h;
+  }
+
+  // ── TABLE: PROFISSIONAIS ──────────────────────────────────────────────
+
+  function renderProfissionais(data) {
+    var profs={};
+    data.forEach(function(row) {
+      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+      if (!row.profissionais||!Array.isArray(row.profissionais)) return;
+      row.profissionais.forEach(function(p) {
+        if (!p.nome_profissional||p.nome_profissional==='-') return;
+        var k=(p.matricula||'')+'|'+p.nome_profissional;
+        if (!profs[k]) profs[k]={mat:p.matricula||'',nome:p.nome_profissional,papel:p.papel_prestador||'',total:0,horas:0,hh:parseFloat(p.hh)||0,nfs:0};
+        profs[k].total = R(profs[k].total+R(p.subtotal_nfe||0));
+        profs[k].horas += parseFloat(p.total_horas)||0;
+        profs[k].nfs++;
+      });
+    });
+    var sorted=Object.keys(profs).sort(function(a,b){return profs[b].total-profs[a].total;}).slice(0,15);
+    var el=document.getElementById('home-profissionais'); if (!el) return;
+    if (sorted.length===0) {
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">group_off</span><p>Nenhum profissional encontrado nas notas analíticas</p></div>';
+      return;
+    }
+    var h='<table class="home-table"><thead><tr>' +
+      '<th>Matrícula</th><th>Profissional</th><th>Papel</th>' +
+      '<th style="text-align:right;">NFs</th><th style="text-align:right;">Horas</th>' +
+      '<th style="text-align:right;">H/H</th><th style="text-align:right;">Total</th>' +
+      '</tr></thead><tbody>';
+    sorted.forEach(function(key) {
+      var p=profs[key];
+      h += '<tr>' +
+        '<td class="col-mono" style="font-size:0.72rem;color:var(--c-outline);">'+E(p.mat)+'</td>' +
+        '<td style="font-weight:600;font-size:0.82rem;white-space:nowrap;">'+E(p.nome)+'</td>' +
+        '<td style="color:var(--c-outline);font-size:0.75rem;white-space:nowrap;">'+E(p.papel)+'</td>' +
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.nfs+'</td>' +
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.horas.toFixed(1)+'h</td>' +
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+BRL(p.hh)+'</td>' +
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(p.total)+'</td>' +
+        '</tr>';
+    });
+    h += '</tbody></table>';
+    el.innerHTML = h;
+  }
+
+  // ── RENDER ALL ────────────────────────────────────────────────────────
+
+  function renderAll(data) {
+    var kpis = calcKpis(data);
+    updateKpis(kpis);
+
+    ['home-row1','home-row2','home-row3','home-row4'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
+
+    renderEvolucao(data);
+    renderInicBar(data);
+    renderVencimentos(data);
+    renderVencidas(data);
+    renderIniciativas(data);
+    renderFornecedores(data);
+    renderProfissionais(data);
+  }
+
+  // ── LOAD ──────────────────────────────────────────────────────────────
 
   function load() {
     if (_loaded) return;
-    SyncMonitor.update('loading', 'Carregando...');
+    SyncMonitor.update('loading','Carregando...');
     var t0 = performance.now();
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res.success) {
-          SyncMonitor.update('error', 'Erro');
-          return;
-        }
+        if (!res.success) { SyncMonitor.update('error','Erro'); return; }
         _allData = res.data || [];
+        window._allDataGlobal = _allData;
         _loaded = true;
-        var kpis = calcKpis(_allData);
-        updateKpis(kpis);
-        SyncMonitor.update('success', 'Carregado', {
+        renderAll(_allData);
+        SyncMonitor.update('success','Carregado',{
           gas: res.metrics ? res.metrics.executionTime : 0,
-          cpu: performance.now() - t0
+          cpu: performance.now()-t0
         });
       })
       .withFailureHandler(function(err) {
-        SyncMonitor.update('error', 'Falha');
+        SyncMonitor.update('error','Falha');
         console.error(err);
       })
       .routerGetNotaFiscalCombined();
   }
 
+  // ── EVENTS ────────────────────────────────────────────────────────────
+
   window.addEventListener('viewFocus', function(e) {
-    if (e.detail.viewId === 'view-home') {
+    if (e.detail.viewId==='view-home') {
       load();
       if (typeof CardFilter !== 'undefined') {
         CardFilter.initialize(function(filters) {
+          if (!_loaded) return;
           var filtered = applyFilters(_allData, filters);
-          var kpis = calcKpis(filtered);
-          updateKpis(kpis);
+          renderAll(filtered);
         });
       }
     } else {
@@ -131,8 +620,7 @@
 
   window.addEventListener('loadKpiDetails', function(e) {
     var detail = e.detail;
-    // Injetar _allData do Page_Home se não existir
-    if (!detail.allData || detail.allData.length === 0) {
+    if (!detail.allData || detail.allData.length===0) {
       detail.allData = _allData;
     }
   });
