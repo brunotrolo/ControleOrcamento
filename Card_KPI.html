@@ -257,31 +257,36 @@ window.CardKPI = (function() {
     }, 300);
   }
 
-  function _openSidebar(kpiKey, label) {
+  function _openSidebar(kpiKey, label, initialTab) {
     _createSidebar();
     var wrapper = document.getElementById('kpi-sidebar-wrapper');
     var overlay = document.getElementById('kpi-overlay');
     var sidebar = document.getElementById('kpi-sidebar');
     var title = document.getElementById('kpi-sidebar-title');
-    
+
     if (!overlay || !sidebar || !title) return;
-    
+
     title.textContent = label;
-    
+
     wrapper.style.display = 'block';
     overlay.style.backgroundColor = 'rgba(0,0,0,0)';
     sidebar.style.opacity = '0';
     sidebar.style.transform = 'translateX(100px)';
-    
+
     _currentKpiKey = kpiKey;
     _sidebarOpen = true;
-    
+
+    var targetTab = initialTab || 'summary';
+    document.querySelectorAll('.kpi-tab').forEach(function(t) {
+      t.classList.toggle('active', t.dataset.tab === targetTab);
+    });
+
     setTimeout(function() {
       wrapper.classList.add('kpi-sidebar-opening');
       overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
     }, 10);
-    
-    _loadTab('summary');
+
+    _loadTab(targetTab);
   }
 
   function update(configs) {
@@ -330,6 +335,6 @@ window.CardKPI = (function() {
     _createSidebar();
   }
 
-  return { initialize, update, closeSidebar: _closeSidebar };
+  return { initialize, update, closeSidebar: _closeSidebar, openSidebar: _openSidebar };
 })();
 </script>

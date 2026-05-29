@@ -28,7 +28,6 @@
   width: 100%;
   border-collapse: collapse;
 }
-
 .home-table th {
   text-align: left;
   font-size: 0.65rem;
@@ -40,7 +39,6 @@
   border-bottom: 1px solid var(--c-outline-variant);
   white-space: nowrap;
 }
-
 .home-table td {
   padding: 9px 10px;
   border-bottom: 1px solid var(--c-outline-variant);
@@ -48,9 +46,8 @@
   font-size: 0.8rem;
   vertical-align: middle;
 }
-
 .home-table tbody tr:last-child td { border-bottom: none; }
-.home-table tbody tr:hover td { background: var(--c-surface-cont-low); }
+.home-table tbody tr:hover td      { background: var(--c-surface-cont-low); }
 
 .home-chip {
   display: inline-flex;
@@ -73,6 +70,90 @@
   font-size: 0.6rem;
   font-weight: 700;
 }
+
+/* Indicador de detalhe nos cabeçalhos clicáveis */
+.card-header.is-clickable {
+  cursor: pointer;
+  border-radius: var(--border-radius-md);
+  transition: background var(--t-fast);
+}
+.card-header.is-clickable:hover {
+  background: var(--c-surface-cont-low);
+}
+.card-header.is-clickable .hdr-expand {
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  font-size: 18px !important;
+  color: var(--c-primary);
+}
+.card-header.is-clickable:hover .hdr-expand {
+  opacity: 1;
+}
+
+/* Heatmap */
+.heatmap-table {
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  min-width: 100%;
+}
+.heatmap-table th {
+  padding: 6px 8px;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-on-surface-variant);
+  border-bottom: 1px solid var(--c-outline-variant);
+  white-space: nowrap;
+  text-align: center;
+}
+.heatmap-table th:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--c-surface);
+  z-index: 2;
+  min-width: 160px;
+  max-width: 200px;
+}
+.heatmap-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--c-outline-variant);
+  border-right: 1px solid var(--c-outline-variant);
+  text-align: center;
+  white-space: nowrap;
+  min-width: 64px;
+  font-family: 'DM Mono', monospace;
+}
+.heatmap-table td:first-child {
+  text-align: left;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--c-on-surface);
+  position: sticky;
+  left: 0;
+  background: var(--c-surface);
+  z-index: 1;
+  border-right: 2px solid var(--c-outline-variant);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.heatmap-table tr:hover td:first-child { background: var(--c-surface-cont-low); }
+.heatmap-table tfoot td {
+  font-weight: 600;
+  color: var(--c-on-surface);
+  background: var(--c-surface-cont-low);
+  border-top: 2px solid var(--c-outline-variant);
+}
+.heatmap-table tfoot td:first-child {
+  background: var(--c-surface-cont-low);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-on-surface-variant);
+}
 </style>
 
 <div id="view-home-content">
@@ -80,24 +161,30 @@
   <!-- Row 1: Evolução Mensal + Distribuição por Iniciativa -->
   <div id="home-row1" class="home-two-col" style="display:none;">
     <div class="card">
-      <div class="card-header">
+      <div class="card-header is-clickable" id="hdr-evolucao">
         <div>
           <h3>Evolução Mensal de Custos</h3>
-          <div class="card-subtitle">Custo realizado (NFs autorizadas) por competência</div>
+          <div class="card-subtitle">Custo realizado por competência — clique para detalhes</div>
         </div>
-        <span class="material-symbols-rounded" style="color:var(--c-primary);font-size:20px;">trending_up</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:var(--c-primary);font-size:20px;">trending_up</span>
+        </div>
       </div>
       <div id="home-chart-evolucao" style="min-height:190px;">
         <div style="padding:32px;text-align:center;color:var(--c-outline);">Carregando...</div>
       </div>
     </div>
     <div class="card">
-      <div class="card-header">
+      <div class="card-header is-clickable" id="hdr-ini-bar">
         <div>
           <h3>Distribuição por Iniciativa</h3>
-          <div class="card-subtitle">Participação percentual no total realizado</div>
+          <div class="card-subtitle">Participação no total realizado — clique para detalhes</div>
         </div>
-        <span class="material-symbols-rounded" style="color:#10b981;font-size:20px;">donut_small</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:#10b981;font-size:20px;">donut_small</span>
+        </div>
       </div>
       <div id="home-chart-iniciativas" style="min-height:190px;">
         <div style="padding:32px;text-align:center;color:var(--c-outline);">Carregando...</div>
@@ -108,22 +195,28 @@
   <!-- Row 2: Próximos Vencimentos + NFs Vencidas -->
   <div id="home-row2" class="home-two-col-eq" style="display:none;">
     <div class="card">
-      <div class="card-header">
+      <div class="card-header is-clickable" id="hdr-vencimentos">
         <div>
           <h3>Próximos Vencimentos</h3>
-          <div class="card-subtitle">NFs autorizadas vencendo nos próximos 30 dias</div>
+          <div class="card-subtitle">NFs autorizadas vencendo em até 30 dias</div>
         </div>
-        <span class="material-symbols-rounded" style="color:var(--c-warning);font-size:20px;">event_upcoming</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:var(--c-warning);font-size:20px;">event_upcoming</span>
+        </div>
       </div>
       <div id="home-vencimentos" style="overflow-x:auto;"></div>
     </div>
     <div class="card">
-      <div class="card-header">
+      <div class="card-header is-clickable" id="hdr-vencidas">
         <div>
           <h3>NFs Vencidas</h3>
           <div class="card-subtitle">Autorizadas com data de vencimento expirada</div>
         </div>
-        <span class="material-symbols-rounded" style="color:var(--c-error);font-size:20px;">warning</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:var(--c-error);font-size:20px;">warning</span>
+        </div>
       </div>
       <div id="home-vencidas" style="overflow-x:auto;"></div>
     </div>
@@ -132,38 +225,75 @@
   <!-- Row 3: Ranking Iniciativas + Ranking Fornecedores -->
   <div id="home-row3" class="home-two-col-eq" style="display:none;">
     <div class="card">
-      <div class="card-header">
+      <div class="card-header is-clickable" id="hdr-rank-ini">
         <div>
           <h3>Ranking de Iniciativas</h3>
-          <div class="card-subtitle">Ordenado por valor total realizado</div>
+          <div class="card-subtitle">Por valor total realizado — clique para detalhes</div>
         </div>
-        <span class="material-symbols-rounded" style="color:#6366f1;font-size:20px;">leaderboard</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:#6366f1;font-size:20px;">leaderboard</span>
+        </div>
       </div>
       <div id="home-iniciativas" style="overflow-x:auto;"></div>
     </div>
     <div class="card">
-      <div class="card-header">
+      <div class="card-header is-clickable" id="hdr-rank-forn">
         <div>
           <h3>Ranking de Fornecedores</h3>
-          <div class="card-subtitle">Ordenado por valor total faturado</div>
+          <div class="card-subtitle">Por valor total faturado — clique para detalhes</div>
         </div>
-        <span class="material-symbols-rounded" style="color:#f59e0b;font-size:20px;">business</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:#f59e0b;font-size:20px;">business</span>
+        </div>
       </div>
       <div id="home-fornecedores" style="overflow-x:auto;"></div>
     </div>
   </div>
 
-  <!-- Row 4: Profissionais Alocados (full width) -->
+  <!-- Row 4: Profissionais Alocados -->
   <div id="home-row4" class="home-section-mt" style="display:none;">
     <div class="card">
-      <div class="card-header">
+      <div class="card-header is-clickable" id="hdr-prof">
         <div>
           <h3>Profissionais Alocados</h3>
-          <div class="card-subtitle">Dados das notas fiscais analíticas — top 15 por valor faturado</div>
+          <div class="card-subtitle">Notas analíticas — top 15 por valor faturado — clique para detalhes</div>
         </div>
-        <span class="material-symbols-rounded" style="color:#8b5cf6;font-size:20px;">groups</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:#8b5cf6;font-size:20px;">groups</span>
+        </div>
       </div>
       <div id="home-profissionais" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
+  <!-- Row 5: Heatmap Mês × Iniciativa -->
+  <div id="home-row5" class="home-section-mt" style="display:none;">
+    <div class="card">
+      <div class="card-header is-clickable" id="hdr-heatmap">
+        <div>
+          <h3>Heatmap de Custos — Mês × Iniciativa</h3>
+          <div class="card-subtitle">Valor realizado por competência e projeto — clique para detalhes por iniciativa</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <div style="display:flex;align-items:center;gap:5px;font-size:0.68rem;color:var(--c-outline);">
+            <span>Menor</span>
+            <div style="display:flex;gap:2px;">
+              <div style="width:13px;height:13px;border-radius:3px;background:rgba(99,102,241,0.10);border:1px solid var(--c-outline-variant);"></div>
+              <div style="width:13px;height:13px;border-radius:3px;background:rgba(99,102,241,0.28);"></div>
+              <div style="width:13px;height:13px;border-radius:3px;background:rgba(99,102,241,0.50);"></div>
+              <div style="width:13px;height:13px;border-radius:3px;background:rgba(99,102,241,0.72);"></div>
+              <div style="width:13px;height:13px;border-radius:3px;background:rgba(99,102,241,0.92);"></div>
+            </div>
+            <span>Maior</span>
+          </div>
+          <span class="material-symbols-rounded" style="color:#6366f1;font-size:20px;">grid_view</span>
+        </div>
+      </div>
+      <div id="home-heatmap" style="overflow-x:auto;"></div>
     </div>
   </div>
 
@@ -172,12 +302,14 @@
 <script>
 (function() {
 
-  var _allData = [];
-  var _loaded = false;
+  var _allData      = [];  // dados completos (sem filtro)
+  var _filteredData = [];  // dados atualmente exibidos (com filtro)
+  var _loaded       = false;
+  var _hdrsAttached = false;
 
   function R(n) { return Math.round((parseFloat(n)||0)*100)/100; }
-  function BRL(n) { return R(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
-  function E(v) { return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function BRL(n){ return R(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+  function E(v)  { return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   var _MN = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
   var _CL = ['#6366f1','#10b981','#f59e0b','#06b6d4','#f43f5e','#8b5cf6','#ec4899','#84cc16','#14b8a6','#f97316'];
@@ -187,6 +319,8 @@
     if (m) return (_MN[parseInt(m[1])-1]||m[1])+'/'+m[2];
     return val;
   }
+
+  // ── FILTROS ───────────────────────────────────────────────────────────
 
   function applyFilters(data, filters) {
     if (!filters || Object.keys(filters).every(function(k){var v=filters[k];return !v||v.length===0;})) return data;
@@ -201,7 +335,36 @@
     });
   }
 
-  // ── KPIs ─────────────────────────────────────────────────────────────
+  // ── SIDEBAR HELPERS ───────────────────────────────────────────────────
+
+  function _openTab(tabKey, title) {
+    if (typeof CardKPI !== 'undefined') CardKPI.openSidebar(tabKey, title, tabKey);
+  }
+
+  function _attachHandlers() {
+    if (_hdrsAttached) return;
+    _hdrsAttached = true;
+    var map = [
+      ['hdr-evolucao',   'evolucao_mensal', 'Evolução Mensal de Custos'],
+      ['hdr-ini-bar',    'iniciativa',      'Distribuição por Iniciativa'],
+      ['hdr-vencimentos','summary',         'Resumo — Vencimentos'],
+      ['hdr-vencidas',   'summary',         'Resumo — NFs Vencidas'],
+      ['hdr-rank-ini',   'iniciativa',      'Ranking de Iniciativas'],
+      ['hdr-rank-forn',  'fornecedor',      'Ranking de Fornecedores'],
+      ['hdr-prof',       'prestador',       'Profissionais Alocados'],
+      ['hdr-heatmap',    'iniciativa',      'Heatmap — Detalhe por Iniciativa'],
+    ];
+    map.forEach(function(cfg) {
+      var el = document.getElementById(cfg[0]);
+      if (!el) return;
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        _openTab(cfg[1], cfg[2]);
+      });
+    });
+  }
+
+  // ── KPIs ──────────────────────────────────────────────────────────────
 
   function calcKpis(data) {
     var hoje = new Date();
@@ -213,13 +376,10 @@
       var v = R(row.total_nfe||0);
       if (s==='Autorizada') {
         tA=R(tA+v); nA++;
-        if (row.iniciativa) iniS[row.iniciativa]=1;
+        if (row.iniciativa)    iniS[row.iniciativa]=1;
         if (row.nome_fantasia) fornS[row.nome_fantasia]=1;
-        if (row.profissionais && Array.isArray(row.profissionais)) {
-          row.profissionais.forEach(function(p) {
-            if (p.nome_profissional && p.nome_profissional!=='-') profS[p.nome_profissional]=1;
-          });
-        }
+        if (row.profissionais && Array.isArray(row.profissionais))
+          row.profissionais.forEach(function(p){if(p.nome_profissional&&p.nome_profissional!=='-')profS[p.nome_profissional]=1;});
         var dv = row.data_vencimento;
         if (dv) {
           var d = dv instanceof Date ? dv : new Date(dv);
@@ -229,32 +389,25 @@
             if (dd>=0&&dd<=30) { tV30=R(tV30+v); nV30++; }
           }
         }
-      } else if (s==='Cancelada') {
-        tC=R(tC+v); nC++;
-      }
+      } else if (s==='Cancelada') { tC=R(tC+v); nC++; }
     });
 
-    return {
-      tA, nA, tC, nC, tV30, nV30, tVd, nVd,
-      nI: Object.keys(iniS).length,
-      nF: Object.keys(fornS).length,
-      nP: Object.keys(profS).length,
-      avg: nA>0 ? R(tA/nA) : 0,
-      total: data.length
-    };
+    return { tA,nA,tC,nC,tV30,nV30,tVd,nVd,
+      nI:Object.keys(iniS).length, nF:Object.keys(fornS).length, nP:Object.keys(profS).length,
+      avg:nA>0?R(tA/nA):0, total:data.length };
   }
 
   function updateKpis(kpis) {
-    if (typeof CardKPI === 'undefined') return;
+    if (typeof CardKPI==='undefined') return;
     CardKPI.update([
-      { key:'total_autorizado', label:'Total Realizado',     value:BRL(kpis.tA),   sub:kpis.nA+' NFs autorizadas',  accent:'#6366f1' },
-      { key:'total_cancelado',  label:'Total Cancelado',     value:BRL(kpis.tC),   sub:kpis.nC+' NFs canceladas',   accent:'#f43f5e' },
-      { key:'vencendo_30dias',  label:'Vencendo em 30 dias', value:BRL(kpis.tV30), sub:kpis.nV30+' NFs',            accent:'#f59e0b' },
-      { key:'vencidas',         label:'NFs Vencidas',        value:BRL(kpis.tVd),  sub:kpis.nVd+' em atraso',       accent:'#ef4444' },
-      { key:'iniciativas',      label:'Iniciativas Ativas',  value:kpis.nI,         sub:'projetos com NFs',          accent:'#10b981' },
-      { key:'fornecedores',     label:'Fornecedores',        value:kpis.nF,         sub:'empresas contratadas',      accent:'#06b6d4' },
-      { key:'profissionais',    label:'Profissionais',       value:kpis.nP,         sub:'colaboradores alocados',    accent:'#8b5cf6' },
-      { key:'media_nf',         label:'Custo Médio / NF',   value:BRL(kpis.avg),  sub:'valor médio autorizado',    accent:'#ec4899' }
+      {key:'total_autorizado', label:'Total Realizado',     value:BRL(kpis.tA),   sub:kpis.nA+' NFs autorizadas',  accent:'#6366f1'},
+      {key:'total_cancelado',  label:'Total Cancelado',     value:BRL(kpis.tC),   sub:kpis.nC+' NFs canceladas',   accent:'#f43f5e'},
+      {key:'vencendo_30dias',  label:'Vencendo em 30 dias', value:BRL(kpis.tV30), sub:kpis.nV30+' NFs',            accent:'#f59e0b'},
+      {key:'vencidas',         label:'NFs Vencidas',        value:BRL(kpis.tVd),  sub:kpis.nVd+' em atraso',       accent:'#ef4444'},
+      {key:'iniciativas',      label:'Iniciativas Ativas',  value:kpis.nI,         sub:'projetos com NFs',          accent:'#10b981'},
+      {key:'fornecedores',     label:'Fornecedores',        value:kpis.nF,         sub:'empresas contratadas',      accent:'#06b6d4'},
+      {key:'profissionais',    label:'Profissionais',       value:kpis.nP,         sub:'colaboradores alocados',    accent:'#8b5cf6'},
+      {key:'media_nf',         label:'Custo Médio / NF',   value:BRL(kpis.avg),  sub:'valor médio autorizado',    accent:'#ec4899'}
     ]);
   }
 
@@ -267,301 +420,342 @@
       var m = String(row.competencia||'').match(/(\d{2})\/(\d{4})/);
       if (!m) return;
       var k = m[2]+'-'+m[1];
-      if (!meses[k]) meses[k] = {mes:m[1],ano:m[2],total:0,qtd:0};
-      meses[k].total = R(meses[k].total+R(row.total_nfe||0));
+      if (!meses[k]) meses[k]={mes:m[1],ano:m[2],total:0,qtd:0};
+      meses[k].total=R(meses[k].total+R(row.total_nfe||0));
       meses[k].qtd++;
     });
     var sorted = Object.keys(meses).sort().map(function(k){return meses[k];});
-    var el = document.getElementById('home-chart-evolucao');
-    if (!el) return;
-    if (sorted.length===0) {
-      el.innerHTML='<div style="padding:32px;text-align:center;color:var(--c-outline);">Nenhum dado disponível</div>';
-      return;
-    }
+    var el = document.getElementById('home-chart-evolucao'); if (!el) return;
+    if (sorted.length===0) { el.innerHTML='<div style="padding:32px;text-align:center;color:var(--c-outline);">Nenhum dado disponível</div>'; return; }
 
-    var W=480, H=180, PL=56, PR=12, PT=12, PB=40;
+    var W=480,H=180,PL=56,PR=12,PT=12,PB=40;
     var gW=W-PL-PR, gH=H-PT-PB;
-    var maxV = Math.max.apply(null, sorted.map(function(m){return m.total;}));
-    var rng = maxV || 1;
+    var maxV = Math.max.apply(null,sorted.map(function(m){return m.total;}))||1;
     var xStep = sorted.length>1 ? gW/(sorted.length-1) : gW/2;
-    function px(i) { return PL+i*xStep; }
-    function py(v)  { return PT+gH-(v/rng*gH); }
+    function px(i){return PL+i*xStep;}
+    function py(v){return PT+gH-(v/maxV*gH);}
 
-    var grid = '';
-    for (var gi=0; gi<=4; gi++) {
-      var gv = (maxV/4)*gi;
-      var gy = py(gv);
-      var lbl = gv>=1e6 ? (gv/1e6).toFixed(1)+'M' : gv>=1000 ? (gv/1000).toFixed(0)+'K' : gv.toFixed(0);
-      grid += '<line x1="'+PL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-PR)+'" y2="'+gy.toFixed(1)+'" stroke="var(--c-outline-variant)" stroke-width="1" stroke-dasharray="3,3"/>';
-      grid += '<text x="'+(PL-5)+'" y="'+(gy+4)+'" text-anchor="end" font-size="9" fill="var(--c-outline)" font-family="DM Mono,monospace">'+lbl+'</text>';
+    var grid='';
+    for (var gi=0;gi<=4;gi++) {
+      var gv=(maxV/4)*gi, gy=py(gv);
+      var lbl=gv>=1e6?(gv/1e6).toFixed(1)+'M':gv>=1000?(gv/1000).toFixed(0)+'K':gv.toFixed(0);
+      grid+='<line x1="'+PL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-PR)+'" y2="'+gy.toFixed(1)+'" stroke="var(--c-outline-variant)" stroke-width="1" stroke-dasharray="3,3"/>';
+      grid+='<text x="'+(PL-5)+'" y="'+(gy+4)+'" text-anchor="end" font-size="9" fill="var(--c-outline)" font-family="DM Mono,monospace">'+lbl+'</text>';
     }
-
-    var pts = sorted.map(function(m,i) { return {x:px(i),y:py(m.total),m:m}; });
-    var pd  = pts.map(function(p,i) { return (i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1); }).join(' ');
+    var pts = sorted.map(function(m,i){return{x:px(i),y:py(m.total),m:m};});
+    var pd  = pts.map(function(p,i){return(i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1);}).join(' ');
     var fd  = pd+' L '+pts[pts.length-1].x+' '+(PT+gH)+' L '+pts[0].x+' '+(PT+gH)+' Z';
-
-    var dots = pts.map(function(p) {
-      return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.5" fill="#6366f1" stroke="white" stroke-width="1.5">' +
+    var dots = pts.map(function(p){
+      return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.5" fill="#6366f1" stroke="white" stroke-width="1.5">'+
         '<title>'+(_MN[parseInt(p.m.mes)-1]||p.m.mes)+'/'+p.m.ano+': '+BRL(p.m.total)+' ('+p.m.qtd+' NFs)</title></circle>';
     }).join('');
-
-    var lblStep = sorted.length > 12 ? 3 : sorted.length > 8 ? 2 : 1;
-    var lbls = pts.map(function(p,i) {
-      if (i%lblStep!==0 && i!==pts.length-1) return '';
-      var mn = _MN[parseInt(p.m.mes)-1]||p.m.mes;
-      return '<text x="'+p.x.toFixed(1)+'" y="'+(H-22)+'" text-anchor="middle" font-size="9" fill="var(--c-outline)" font-family="DM Sans,system-ui">'+mn+'</text>' +
-             '<text x="'+p.x.toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle" font-size="8" fill="var(--c-outline)" font-family="DM Sans,system-ui">'+p.m.ano+'</text>';
+    var lblStep = sorted.length>12?3:sorted.length>8?2:1;
+    var lbls = pts.map(function(p,i){
+      if (i%lblStep!==0&&i!==pts.length-1) return '';
+      var mn=_MN[parseInt(p.m.mes)-1]||p.m.mes;
+      return '<text x="'+p.x.toFixed(1)+'" y="'+(H-22)+'" text-anchor="middle" font-size="9" fill="var(--c-outline)" font-family="DM Sans,system-ui">'+mn+'</text>'+
+             '<text x="'+p.x.toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle" font-size="8"  fill="var(--c-outline)" font-family="DM Sans,system-ui">'+p.m.ano+'</text>';
     }).join('');
-
-    el.innerHTML = '<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">' +
-      '<defs><linearGradient id="heg" x1="0" y1="0" x2="0" y2="1">' +
-        '<stop offset="0%" style="stop-color:#6366f1;stop-opacity:.25"/>' +
-        '<stop offset="100%" style="stop-color:#6366f1;stop-opacity:.02"/>' +
-      '</linearGradient></defs>' +
-      grid +
-      '<path d="'+fd+'" fill="url(#heg)"/>' +
-      '<path d="'+pd+'" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-      dots + lbls +
-      '</svg>';
+    el.innerHTML='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+
+      '<defs><linearGradient id="heg" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0%"   style="stop-color:#6366f1;stop-opacity:.25"/>'+
+        '<stop offset="100%" style="stop-color:#6366f1;stop-opacity:.02"/>'+
+      '</linearGradient></defs>'+
+      grid+
+      '<path d="'+fd+'" fill="url(#heg)"/>'+
+      '<path d="'+pd+'" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+      dots+lbls+'</svg>';
   }
 
-  // ── CHART: DISTRIBUIÇÃO INICIATIVAS (barras horizontais) ──────────────
+  // ── CHART: DISTRIBUIÇÃO INICIATIVAS ──────────────────────────────────
 
   function renderInicBar(data) {
-    var inis = {};
-    data.forEach(function(row) {
-      if ((row.status_nfe||'').trim()!=='Autorizada') return;
-      var n = row.iniciativa||'N/A';
-      inis[n] = R((inis[n]||0)+R(row.total_nfe||0));
+    var inis={};
+    data.forEach(function(row){
+      if((row.status_nfe||'').trim()!=='Autorizada') return;
+      var n=row.iniciativa||'N/A';
+      inis[n]=R((inis[n]||0)+R(row.total_nfe||0));
     });
-    var sorted = Object.keys(inis).sort(function(a,b){return inis[b]-inis[a];}).slice(0,8);
-    var el = document.getElementById('home-chart-iniciativas');
-    if (!el) return;
-    if (sorted.length===0) {
-      el.innerHTML='<div style="padding:32px;text-align:center;color:var(--c-outline);">Nenhum dado</div>';
-      return;
-    }
-    var maxV   = inis[sorted[0]]||1;
-    var totalG = sorted.reduce(function(acc,k){return R(acc+inis[k]);},0);
-    var html   = '<div style="padding:4px 4px 8px;">';
-    sorted.forEach(function(nome,i) {
-      var v   = inis[nome];
-      var pct = (v/maxV*100).toFixed(0);
-      var pctTot = ((v/totalG)*100).toFixed(1);
-      var c   = _CL[i%_CL.length];
-      var lbl = nome.length>22 ? nome.substring(0,22)+'…' : nome;
-      html += '<div style="margin-bottom:11px;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-          '<span style="font-size:0.72rem;color:var(--c-on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:155px;" title="'+E(nome)+'">'+E(lbl)+'</span>' +
-          '<span style="font-size:0.68rem;color:'+c+';font-weight:700;font-family:DM Mono,monospace;margin-left:6px;flex-shrink:0;">'+pctTot+'%</span>' +
-        '</div>' +
-        '<div style="height:7px;background:var(--c-surface-cont);border-radius:4px;overflow:hidden;">' +
-          '<div style="height:100%;width:'+pct+'%;background:'+c+';border-radius:4px;"></div>' +
-        '</div>' +
-        '</div>';
+    var sorted=Object.keys(inis).sort(function(a,b){return inis[b]-inis[a];}).slice(0,8);
+    var el=document.getElementById('home-chart-iniciativas'); if (!el) return;
+    if (sorted.length===0){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--c-outline);">Nenhum dado</div>';return;}
+    var maxV=inis[sorted[0]]||1;
+    var totalG=sorted.reduce(function(acc,k){return R(acc+inis[k]);},0);
+    var html='<div style="padding:4px 4px 8px;">';
+    sorted.forEach(function(nome,i){
+      var v=inis[nome], pct=(v/maxV*100).toFixed(0), pctTot=((v/totalG)*100).toFixed(1), c=_CL[i%_CL.length];
+      var lbl=nome.length>22?nome.substring(0,22)+'…':nome;
+      html+='<div style="margin-bottom:11px;">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'+
+          '<span style="font-size:0.72rem;color:var(--c-on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:155px;" title="'+E(nome)+'">'+E(lbl)+'</span>'+
+          '<span style="font-size:0.68rem;color:'+c+';font-weight:700;font-family:DM Mono,monospace;margin-left:6px;flex-shrink:0;">'+pctTot+'%</span>'+
+        '</div>'+
+        '<div style="height:7px;background:var(--c-surface-cont);border-radius:4px;overflow:hidden;">'+
+          '<div style="height:100%;width:'+pct+'%;background:'+c+';border-radius:4px;"></div>'+
+        '</div></div>';
     });
-    html += '</div>';
-    el.innerHTML = html;
+    html+='</div>';
+    el.innerHTML=html;
   }
 
   // ── TABLE: PRÓXIMOS VENCIMENTOS ───────────────────────────────────────
 
   function renderVencimentos(data) {
     var hoje=new Date(), prox=[];
-    data.forEach(function(row) {
-      if ((row.status_nfe||'').trim()!=='Autorizada') return;
-      var dv=row.data_vencimento; if (!dv) return;
-      var d=dv instanceof Date?dv:new Date(dv); if (isNaN(d)) return;
+    data.forEach(function(row){
+      if((row.status_nfe||'').trim()!=='Autorizada') return;
+      var dv=row.data_vencimento; if(!dv) return;
+      var d=dv instanceof Date?dv:new Date(dv); if(isNaN(d)) return;
       var dd=Math.round((d-hoje)/86400000);
-      if (dd>=0&&dd<=30) prox.push({
-        dataStr:d.toLocaleDateString('pt-BR'),
-        forn:row.nome_fantasia||'—', ini:row.iniciativa||'—',
-        nfe:row.nfe||'—', val:R(row.total_nfe||0), dias:dd
-      });
+      if(dd>=0&&dd<=30) prox.push({dataStr:d.toLocaleDateString('pt-BR'),forn:row.nome_fantasia||'—',ini:row.iniciativa||'—',val:R(row.total_nfe||0),dias:dd});
     });
     prox.sort(function(a,b){return a.dias-b.dias;});
-    var el=document.getElementById('home-vencimentos'); if (!el) return;
-    if (prox.length===0) {
-      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">check_circle</span><p>Sem vencimentos nos próximos 30 dias</p></div>';
-      return;
-    }
+    var el=document.getElementById('home-vencimentos'); if(!el) return;
+    if(prox.length===0){el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">check_circle</span><p>Sem vencimentos nos próximos 30 dias</p></div>';return;}
     var h='<table class="home-table"><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Iniciativa</th><th style="text-align:right;">Valor</th><th>Prazo</th></tr></thead><tbody>';
-    prox.slice(0,10).forEach(function(v) {
-      var chipStyle = v.dias<=7
-        ? 'background:var(--c-error-cont);color:var(--c-error);'
-        : 'background:var(--c-warning-cont);color:var(--c-warning);';
-      var txt = v.dias===0 ? 'hoje' : v.dias+'d';
-      h += '<tr>' +
-        '<td class="col-mono" style="font-size:0.75rem;">'+E(v.dataStr)+'</td>' +
-        '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.forn)+'">'+E(v.forn)+'</td>' +
-        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.ini)+'">'+E(v.ini)+'</td>' +
-        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(v.val)+'</td>' +
-        '<td><span class="home-chip" style="'+chipStyle+'">'+E(txt)+'</span></td>' +
+    prox.slice(0,10).forEach(function(v){
+      var chipStyle=v.dias<=7?'background:var(--c-error-cont);color:var(--c-error);':'background:var(--c-warning-cont);color:var(--c-warning);';
+      var txt=v.dias===0?'hoje':v.dias+'d';
+      h+='<tr>'+
+        '<td class="col-mono" style="font-size:0.75rem;">'+E(v.dataStr)+'</td>'+
+        '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.forn)+'">'+E(v.forn)+'</td>'+
+        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.ini)+'">'+E(v.ini)+'</td>'+
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(v.val)+'</td>'+
+        '<td><span class="home-chip" style="'+chipStyle+'">'+E(txt)+'</span></td>'+
         '</tr>';
     });
-    h += '</tbody></table>';
-    if (prox.length>10) h += '<div style="padding:8px 10px;font-size:0.72rem;color:var(--c-outline);">+'+(prox.length-10)+' mais</div>';
-    el.innerHTML = h;
+    h+='</tbody></table>';
+    if(prox.length>10) h+='<div style="padding:8px 10px;font-size:0.72rem;color:var(--c-outline);">+'+(prox.length-10)+' mais</div>';
+    el.innerHTML=h;
   }
 
   // ── TABLE: NFs VENCIDAS ───────────────────────────────────────────────
 
   function renderVencidas(data) {
     var hoje=new Date(), venc=[];
-    data.forEach(function(row) {
-      if ((row.status_nfe||'').trim()!=='Autorizada') return;
-      var dv=row.data_vencimento; if (!dv) return;
-      var d=dv instanceof Date?dv:new Date(dv); if (isNaN(d)) return;
+    data.forEach(function(row){
+      if((row.status_nfe||'').trim()!=='Autorizada') return;
+      var dv=row.data_vencimento; if(!dv) return;
+      var d=dv instanceof Date?dv:new Date(dv); if(isNaN(d)) return;
       var dd=Math.round((d-hoje)/86400000);
-      if (dd<0) venc.push({
-        dataStr:d.toLocaleDateString('pt-BR'),
-        forn:row.nome_fantasia||'—', ini:row.iniciativa||'—',
-        val:R(row.total_nfe||0), dias:Math.abs(dd)
-      });
+      if(dd<0) venc.push({dataStr:d.toLocaleDateString('pt-BR'),forn:row.nome_fantasia||'—',ini:row.iniciativa||'—',val:R(row.total_nfe||0),dias:Math.abs(dd)});
     });
     venc.sort(function(a,b){return b.dias-a.dias;});
-    var el=document.getElementById('home-vencidas'); if (!el) return;
-    if (venc.length===0) {
-      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">check_circle</span><p>Nenhuma NF vencida</p></div>';
-      return;
-    }
+    var el=document.getElementById('home-vencidas'); if(!el) return;
+    if(venc.length===0){el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">check_circle</span><p>Nenhuma NF vencida</p></div>';return;}
     var h='<table class="home-table"><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Iniciativa</th><th style="text-align:right;">Valor</th><th>Atraso</th></tr></thead><tbody>';
-    venc.slice(0,10).forEach(function(v) {
-      h += '<tr>' +
-        '<td class="col-mono" style="font-size:0.75rem;">'+E(v.dataStr)+'</td>' +
-        '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.forn)+'">'+E(v.forn)+'</td>' +
-        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.ini)+'">'+E(v.ini)+'</td>' +
-        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(v.val)+'</td>' +
-        '<td><span class="home-chip" style="background:var(--c-error-cont);color:var(--c-error);">'+v.dias+'d atraso</span></td>' +
+    venc.slice(0,10).forEach(function(v){
+      h+='<tr>'+
+        '<td class="col-mono" style="font-size:0.75rem;">'+E(v.dataStr)+'</td>'+
+        '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.forn)+'">'+E(v.forn)+'</td>'+
+        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.ini)+'">'+E(v.ini)+'</td>'+
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(v.val)+'</td>'+
+        '<td><span class="home-chip" style="background:var(--c-error-cont);color:var(--c-error);">'+v.dias+'d atraso</span></td>'+
         '</tr>';
     });
-    h += '</tbody></table>';
-    if (venc.length>10) h += '<div style="padding:8px 10px;font-size:0.72rem;color:var(--c-outline);">+'+(venc.length-10)+' mais</div>';
-    el.innerHTML = h;
+    h+='</tbody></table>';
+    if(venc.length>10) h+='<div style="padding:8px 10px;font-size:0.72rem;color:var(--c-outline);">+'+(venc.length-10)+' mais</div>';
+    el.innerHTML=h;
   }
 
   // ── TABLE: RANKING INICIATIVAS ────────────────────────────────────────
 
   function renderIniciativas(data) {
     var inis={};
-    data.forEach(function(row) {
-      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+    data.forEach(function(row){
+      if((row.status_nfe||'').trim()!=='Autorizada') return;
       var n=row.iniciativa||'N/A', desc=row.iniciativa_descricao||'';
-      if (!inis[n]) inis[n]={total:0,qtd:0,desc:desc};
+      if(!inis[n]) inis[n]={total:0,qtd:0,desc:desc};
       inis[n].total=R(inis[n].total+R(row.total_nfe||0)); inis[n].qtd++;
     });
     var sorted=Object.keys(inis).sort(function(a,b){return inis[b].total-inis[a].total;});
-    var el=document.getElementById('home-iniciativas'); if (!el) return;
-    if (sorted.length===0) {
-      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">folder_off</span><p>Sem dados de iniciativas</p></div>';
-      return;
-    }
+    var el=document.getElementById('home-iniciativas'); if(!el) return;
+    if(sorted.length===0){el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">folder_off</span><p>Sem dados</p></div>';return;}
     var tot=sorted.reduce(function(acc,k){return R(acc+inis[k].total);},0);
-    var h='<table class="home-table"><thead><tr>' +
-      '<th>#</th><th>Iniciativa</th><th style="text-align:right;">NFs</th>' +
-      '<th style="text-align:right;">Total</th><th style="text-align:right;">Part.</th>' +
-      '</tr></thead><tbody>';
-    sorted.forEach(function(nome,i) {
+    var h='<table class="home-table"><thead><tr><th>#</th><th>Iniciativa</th><th style="text-align:right;">NFs</th><th style="text-align:right;">Total</th><th style="text-align:right;">Part.</th></tr></thead><tbody>';
+    sorted.forEach(function(nome,i){
       var d=inis[nome], pct=((d.total/tot)*100).toFixed(1), c=_CL[i%_CL.length];
-      h += '<tr>' +
-        '<td><span class="home-rank-badge" style="background:'+c+';">'+(i+1)+'</span></td>' +
-        '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="'+E(nome)+(d.desc?' — '+d.desc:'')+'">'+E(nome)+'</td>' +
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+d.qtd+'</td>' +
-        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(d.total)+'</td>' +
-        '<td style="text-align:right;"><span style="font-size:0.7rem;font-weight:700;color:'+c+';">'+pct+'%</span></td>' +
+      h+='<tr>'+
+        '<td><span class="home-rank-badge" style="background:'+c+';">'+(i+1)+'</span></td>'+
+        '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="'+E(nome)+(d.desc?' — '+d.desc:'')+'">'+E(nome)+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+d.qtd+'</td>'+
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(d.total)+'</td>'+
+        '<td style="text-align:right;"><span style="font-size:0.7rem;font-weight:700;color:'+c+';">'+pct+'%</span></td>'+
         '</tr>';
     });
-    h += '</tbody></table>';
-    el.innerHTML = h;
+    h+='</tbody></table>';
+    el.innerHTML=h;
   }
 
   // ── TABLE: RANKING FORNECEDORES ───────────────────────────────────────
 
   function renderFornecedores(data) {
     var forns={};
-    data.forEach(function(row) {
-      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+    data.forEach(function(row){
+      if((row.status_nfe||'').trim()!=='Autorizada') return;
       var n=row.nome_fantasia||'N/A';
-      if (!forns[n]) forns[n]={total:0,qtd:0};
+      if(!forns[n]) forns[n]={total:0,qtd:0};
       forns[n].total=R(forns[n].total+R(row.total_nfe||0)); forns[n].qtd++;
     });
     var sorted=Object.keys(forns).sort(function(a,b){return forns[b].total-forns[a].total;});
-    var el=document.getElementById('home-fornecedores'); if (!el) return;
-    if (sorted.length===0) {
-      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">business_off</span><p>Sem dados de fornecedores</p></div>';
-      return;
-    }
+    var el=document.getElementById('home-fornecedores'); if(!el) return;
+    if(sorted.length===0){el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">business_off</span><p>Sem dados</p></div>';return;}
     var tot=sorted.reduce(function(acc,k){return R(acc+forns[k].total);},0);
-    var h='<table class="home-table"><thead><tr>' +
-      '<th>#</th><th>Fornecedor</th><th style="text-align:right;">NFs</th>' +
-      '<th style="text-align:right;">Total</th><th style="text-align:right;">Part.</th>' +
-      '</tr></thead><tbody>';
-    sorted.forEach(function(nome,i) {
+    var h='<table class="home-table"><thead><tr><th>#</th><th>Fornecedor</th><th style="text-align:right;">NFs</th><th style="text-align:right;">Total</th><th style="text-align:right;">Part.</th></tr></thead><tbody>';
+    sorted.forEach(function(nome,i){
       var d=forns[nome], pct=((d.total/tot)*100).toFixed(1), c=_CL[i%_CL.length];
-      h += '<tr>' +
-        '<td><span class="home-rank-badge" style="background:'+c+';">'+(i+1)+'</span></td>' +
-        '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="'+E(nome)+'">'+E(nome)+'</td>' +
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+d.qtd+'</td>' +
-        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(d.total)+'</td>' +
-        '<td style="text-align:right;"><span style="font-size:0.7rem;font-weight:700;color:'+c+';">'+pct+'%</span></td>' +
+      h+='<tr>'+
+        '<td><span class="home-rank-badge" style="background:'+c+';">'+(i+1)+'</span></td>'+
+        '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="'+E(nome)+'">'+E(nome)+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+d.qtd+'</td>'+
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(d.total)+'</td>'+
+        '<td style="text-align:right;"><span style="font-size:0.7rem;font-weight:700;color:'+c+';">'+pct+'%</span></td>'+
         '</tr>';
     });
-    h += '</tbody></table>';
-    el.innerHTML = h;
+    h+='</tbody></table>';
+    el.innerHTML=h;
   }
 
   // ── TABLE: PROFISSIONAIS ──────────────────────────────────────────────
 
   function renderProfissionais(data) {
     var profs={};
-    data.forEach(function(row) {
-      if ((row.status_nfe||'').trim()!=='Autorizada') return;
-      if (!row.profissionais||!Array.isArray(row.profissionais)) return;
-      row.profissionais.forEach(function(p) {
-        if (!p.nome_profissional||p.nome_profissional==='-') return;
+    data.forEach(function(row){
+      if((row.status_nfe||'').trim()!=='Autorizada') return;
+      if(!row.profissionais||!Array.isArray(row.profissionais)) return;
+      row.profissionais.forEach(function(p){
+        if(!p.nome_profissional||p.nome_profissional==='-') return;
         var k=(p.matricula||'')+'|'+p.nome_profissional;
-        if (!profs[k]) profs[k]={mat:p.matricula||'',nome:p.nome_profissional,papel:p.papel_prestador||'',total:0,horas:0,hh:parseFloat(p.hh)||0,nfs:0};
-        profs[k].total = R(profs[k].total+R(p.subtotal_nfe||0));
-        profs[k].horas += parseFloat(p.total_horas)||0;
+        if(!profs[k]) profs[k]={mat:p.matricula||'',nome:p.nome_profissional,papel:p.papel_prestador||'',total:0,horas:0,hh:parseFloat(p.hh)||0,nfs:0};
+        profs[k].total=R(profs[k].total+R(p.subtotal_nfe||0));
+        profs[k].horas+=parseFloat(p.total_horas)||0;
         profs[k].nfs++;
       });
     });
     var sorted=Object.keys(profs).sort(function(a,b){return profs[b].total-profs[a].total;}).slice(0,15);
-    var el=document.getElementById('home-profissionais'); if (!el) return;
-    if (sorted.length===0) {
-      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">group_off</span><p>Nenhum profissional encontrado nas notas analíticas</p></div>';
-      return;
-    }
-    var h='<table class="home-table"><thead><tr>' +
-      '<th>Matrícula</th><th>Profissional</th><th>Papel</th>' +
-      '<th style="text-align:right;">NFs</th><th style="text-align:right;">Horas</th>' +
-      '<th style="text-align:right;">H/H</th><th style="text-align:right;">Total</th>' +
+    var el=document.getElementById('home-profissionais'); if(!el) return;
+    if(sorted.length===0){el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">group_off</span><p>Nenhum profissional nas notas analíticas</p></div>';return;}
+    var h='<table class="home-table"><thead><tr>'+
+      '<th>Matrícula</th><th>Profissional</th><th>Papel</th>'+
+      '<th style="text-align:right;">NFs</th><th style="text-align:right;">Horas</th>'+
+      '<th style="text-align:right;">H/H</th><th style="text-align:right;">Total</th>'+
       '</tr></thead><tbody>';
-    sorted.forEach(function(key) {
+    sorted.forEach(function(key){
       var p=profs[key];
-      h += '<tr>' +
-        '<td class="col-mono" style="font-size:0.72rem;color:var(--c-outline);">'+E(p.mat)+'</td>' +
-        '<td style="font-weight:600;font-size:0.82rem;white-space:nowrap;">'+E(p.nome)+'</td>' +
-        '<td style="color:var(--c-outline);font-size:0.75rem;white-space:nowrap;">'+E(p.papel)+'</td>' +
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.nfs+'</td>' +
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.horas.toFixed(1)+'h</td>' +
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+BRL(p.hh)+'</td>' +
-        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(p.total)+'</td>' +
+      h+='<tr>'+
+        '<td class="col-mono" style="font-size:0.72rem;color:var(--c-outline);">'+E(p.mat)+'</td>'+
+        '<td style="font-weight:600;font-size:0.82rem;white-space:nowrap;">'+E(p.nome)+'</td>'+
+        '<td style="color:var(--c-outline);font-size:0.75rem;white-space:nowrap;">'+E(p.papel)+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.nfs+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.horas.toFixed(1)+'h</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+BRL(p.hh)+'</td>'+
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL(p.total)+'</td>'+
         '</tr>';
     });
-    h += '</tbody></table>';
-    el.innerHTML = h;
+    h+='</tbody></table>';
+    el.innerHTML=h;
+  }
+
+  // ── HEATMAP: MÊS × INICIATIVA ────────────────────────────────────────
+
+  function renderHeatmap(data) {
+    var months  = {};   // monthKey → label "JAN/24"
+    var inis    = {};   // ini → total
+    var matrix  = {};   // matrix[ini][monthKey] = value
+
+    data.forEach(function(row) {
+      if ((row.status_nfe||'').trim()!=='Autorizada') return;
+      var m = String(row.competencia||'').match(/(\d{2})\/(\d{4})/);
+      if (!m) return;
+      var monthKey = m[2]+'-'+m[1];
+      var monthLbl = (_MN[parseInt(m[1])-1]||m[1])+'/'+m[2].slice(2);
+      var ini = row.iniciativa||'N/A';
+      var val = R(row.total_nfe||0);
+
+      months[monthKey]  = monthLbl;
+      inis[ini]         = R((inis[ini]||0)+val);
+      if (!matrix[ini]) matrix[ini]={};
+      matrix[ini][monthKey] = R((matrix[ini][monthKey]||0)+val);
+    });
+
+    var sortedMonths = Object.keys(months).sort();
+    var sortedInis   = Object.keys(inis).sort(function(a,b){return inis[b]-inis[a];});
+
+    var el = document.getElementById('home-heatmap'); if (!el) return;
+    if (sortedInis.length===0||sortedMonths.length===0) {
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">grid_off</span><p>Sem dados para o heatmap</p></div>';
+      return;
+    }
+
+    // Escala de cor
+    var allVals=[];
+    sortedInis.forEach(function(ini){ sortedMonths.forEach(function(m){ if(matrix[ini][m]) allVals.push(matrix[ini][m]); }); });
+    var maxVal = Math.max.apply(null,allVals)||1;
+
+    function heatBg(val) {
+      if (!val) return '';
+      var t = Math.pow(val/maxVal, 0.55);
+      return 'background:rgba(99,102,241,'+(0.08+t*0.84).toFixed(2)+');';
+    }
+    function heatFg(val) {
+      if (!val) return 'color:var(--c-outline);';
+      return Math.pow(val/maxVal,0.55)>0.48 ? 'color:#fff;' : 'color:var(--c-on-surface);';
+    }
+    function compact(val) {
+      if (!val) return '';
+      if (val>=1e6) return (val/1e6).toFixed(1)+'M';
+      if (val>=1e3) return (val/1e3).toFixed(0)+'K';
+      return val.toFixed(0);
+    }
+
+    // Totais mensais
+    var mTotals={};
+    sortedMonths.forEach(function(m){
+      mTotals[m]=sortedInis.reduce(function(acc,ini){return R(acc+(matrix[ini][m]||0));},0);
+    });
+    var grandTotal=sortedInis.reduce(function(acc,k){return R(acc+inis[k]);},0);
+
+    // Build table
+    var h='<table class="heatmap-table"><thead><tr>'+
+      '<th>Iniciativa</th>';
+    sortedMonths.forEach(function(m){ h+='<th>'+E(months[m])+'</th>'; });
+    h+='<th style="text-align:right;padding:6px 10px;min-width:90px;">Total</th></tr></thead><tbody>';
+
+    sortedInis.forEach(function(ini){
+      var iniTotal=inis[ini];
+      h+='<tr>'+
+        '<td title="'+E(ini)+'">'+E(ini.length>26?ini.substring(0,26)+'…':ini)+'</td>';
+      sortedMonths.forEach(function(m){
+        var val=matrix[ini][m]||0;
+        h+='<td style="'+heatBg(val)+heatFg(val)+'" title="'+E(ini)+' · '+E(months[m])+': '+BRL(val)+'">'+compact(val)+'</td>';
+      });
+      h+='<td style="text-align:right;padding:5px 10px;font-family:DM Mono,monospace;font-size:0.75rem;font-weight:600;color:var(--c-primary);">'+BRL(iniTotal)+'</td>'+
+        '</tr>';
+    });
+
+    h+='</tbody><tfoot><tr>'+
+      '<td>Total Mensal</td>';
+    sortedMonths.forEach(function(m){
+      h+='<td style="text-align:center;font-family:DM Mono,monospace;font-size:0.7rem;">'+compact(mTotals[m])+'</td>';
+    });
+    h+='<td style="text-align:right;padding:5px 10px;font-family:DM Mono,monospace;font-size:0.75rem;font-weight:700;color:var(--c-primary);">'+BRL(grandTotal)+'</td>'+
+      '</tr></tfoot></table>';
+
+    el.innerHTML=h;
   }
 
   // ── RENDER ALL ────────────────────────────────────────────────────────
 
   function renderAll(data) {
+    // Mantém dado filtrado sincronizado para sidebar e listeners
+    _filteredData          = data;
+    window._allDataGlobal  = data;
+
     var kpis = calcKpis(data);
     updateKpis(kpis);
 
-    ['home-row1','home-row2','home-row3','home-row4'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.style.display = '';
+    ['home-row1','home-row2','home-row3','home-row4','home-row5'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.style.display='';
     });
 
     renderEvolucao(data);
@@ -571,6 +765,7 @@
     renderIniciativas(data);
     renderFornecedores(data);
     renderProfissionais(data);
+    renderHeatmap(data);
   }
 
   // ── LOAD ──────────────────────────────────────────────────────────────
@@ -578,23 +773,19 @@
   function load() {
     if (_loaded) return;
     SyncMonitor.update('loading','Carregando...');
-    var t0 = performance.now();
+    var t0=performance.now();
     google.script.run
-      .withSuccessHandler(function(res) {
-        if (!res.success) { SyncMonitor.update('error','Erro'); return; }
-        _allData = res.data || [];
-        window._allDataGlobal = _allData;
-        _loaded = true;
+      .withSuccessHandler(function(res){
+        if(!res.success){SyncMonitor.update('error','Erro');return;}
+        _allData=res.data||[];
+        _loaded=true;
         renderAll(_allData);
         SyncMonitor.update('success','Carregado',{
-          gas: res.metrics ? res.metrics.executionTime : 0,
-          cpu: performance.now()-t0
+          gas:res.metrics?res.metrics.executionTime:0,
+          cpu:performance.now()-t0
         });
       })
-      .withFailureHandler(function(err) {
-        SyncMonitor.update('error','Falha');
-        console.error(err);
-      })
+      .withFailureHandler(function(err){SyncMonitor.update('error','Falha');console.error(err);})
       .routerGetNotaFiscalCombined();
   }
 
@@ -602,27 +793,23 @@
 
   window.addEventListener('viewFocus', function(e) {
     if (e.detail.viewId==='view-home') {
+      _attachHandlers();
       load();
       if (typeof CardFilter !== 'undefined') {
         CardFilter.initialize(function(filters) {
           if (!_loaded) return;
-          var filtered = applyFilters(_allData, filters);
-          renderAll(filtered);
+          renderAll(applyFilters(_allData, filters));
         });
       }
     } else {
       _loaded = false;
-      if (typeof CardFilter !== 'undefined' && typeof CardFilter.cleanup === 'function') {
-        CardFilter.cleanup();
-      }
+      if (typeof CardFilter !== 'undefined' && typeof CardFilter.cleanup === 'function') CardFilter.cleanup();
     }
   });
 
+  // Sidebar sempre usa os dados filtrados atualmente exibidos
   window.addEventListener('loadKpiDetails', function(e) {
-    var detail = e.detail;
-    if (!detail.allData || detail.allData.length===0) {
-      detail.allData = _allData;
-    }
+    e.detail.allData = _filteredData.length>0 ? _filteredData : _allData;
   });
 
 })();
