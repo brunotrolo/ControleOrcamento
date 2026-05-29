@@ -458,15 +458,14 @@ function routerGetFilterValues(sheetName, fieldKeys) {
 
 /**
  * GET — Lê a aba FORECAST e retorna linhas estruturadas + lista de meses.
- * Detecta colunas mensais tanto como objetos Date (cabeçalho data no Sheets)
- * quanto como texto no formato "jan.-26", "jan-26", etc.
- * Não usa DAO/normalizeKey para não perder os cabeçalhos de data.
+ * Usa detecção semântica para localizar colunas (INIBANK, INICIATIVA, Tipo,
+ * ITEM, Projeção) independentemente do nome exato do cabeçalho.
+ * Detecta meses como Date objects OU texto em vários formatos.
+ * Retorna campos padronizados: inibank, iniciativa, tipo, item, projecao_2026.
  */
 function routerGetForecastData() {
   return _route(() => {
-    const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(ALLOWED_SHEETS.FORECAST);
-    if (!sheet) throw new Error("Aba FORECAST não encontrada");
+    const { sheet } = _openSheet(ALLOWED_SHEETS.FORECAST);
 
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
@@ -477,65 +476,125 @@ function routerGetForecastData() {
 
     const PTR_MON = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
-    // Classify each column as 'month' or 'field'
-    const colRoles = headers.map((h, i) => {
-      // Date object in header → month column
+    // Normaliza string removendo acentos, lowercase, sem espaços/símbolos
+    function _nk(s) {
+      if (s instanceof Date || s == null) return '';
+      return String(s).trim()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^\w]/g, '');
+    }
+
+    // Tenta extrair label de mês a partir de um valor de cabeçalho
+    function _monthLabel(h) {
       if (h instanceof Date) {
-        const m = h.getMonth();
-        const y = String(h.getFullYear()).slice(-2);
-        return { kind: 'month', label: PTR_MON[m] + '.-' + y, idx: i };
+        return PTR_MON[h.getMonth()] + '.-' + String(h.getFullYear()).slice(-2);
       }
-      const s = String(h || '').trim();
-      if (!s) return { kind: 'skip', idx: i };
+      const k = _nk(h);
+      if (!k) return null;
 
-      // Normalize for comparison
-      const nl = s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+      // "jan26", "jan_26", "jan26" (normalizado de "jan.-26", "jan/26", etc.)
+      const m1 = k.match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\D*(\d{2})$/);
+      if (m1) return m1[1] + '.-' + m1[2];
 
-      // Month text pattern: "jan.-26", "jan-26", "jan/26", "jan 26"
-      const mm = nl.match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[^\d]*(\d{2})$/);
-      if (mm) return { kind: 'month', label: mm[1] + '.-' + mm[2], idx: i };
+      // "01_2026" ou "012026" (normalizado de "01/2026" ou "01-2026")
+      const m2 = k.match(/^(\d{1,2})\D?(\d{4})$/);
+      if (m2) {
+        const mo = parseInt(m2[1]) - 1;
+        if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m2[2]).slice(-2);
+      }
 
-      // Field column — normalize to snake_case
-      const key = nl.replace(/\s+/g, '_').replace(/[^\w]/g, '');
-      return { kind: 'field', key: key || ('col_' + i), idx: i };
+      // "20260[1]" (normalizado de "2026/01" ou "2026-01")
+      const m3 = k.match(/^(\d{4})\D?(\d{1,2})$/);
+      if (m3) {
+        const mo = parseInt(m3[2]) - 1;
+        if (mo >= 0 && mo <= 11) return PTR_MON[mo] + '.-' + String(m3[1]).slice(-2);
+      }
+
+      return null;
+    }
+
+    // Classifica cada coluna
+    const cols = headers.map((h, i) => {
+      const mLabel = _monthLabel(h);
+      if (mLabel) return { kind: 'month', label: mLabel, i };
+      const key = _nk(h);
+      if (!key) return { kind: 'skip', i };
+      return { kind: 'field', key, rawHeader: String(h || '').trim(), i };
     });
 
-    const months = colRoles.filter(c => c.kind === 'month').map(c => c.label);
+    const months = cols.filter(c => c.kind === 'month').map(c => c.label);
+    const fields  = cols.filter(c => c.kind === 'field');
 
-    // Parse data rows
+    // Localiza coluna por lista de padrões (string exata ou RegExp)
+    function _findCol(...patterns) {
+      return fields.find(c => patterns.some(p =>
+        typeof p === 'string' ? c.key === p : p.test(c.key)
+      ));
+    }
+
+    const C_INI  = _findCol(/inibank/, /ini_bank/, /^codigo$/, /^cod$/, /^cod_ini/, /^ini$/);
+    const C_DESC = _findCol(/iniciativa/, /descricao_iniciativa/, /^descricao$/, /descr/, /projeto/, /nome_projeto/);
+    const C_TIPO = _findCol('tipo', 'type', 'categoria', 'natureza');
+    const C_ITEM = _findCol('item', 'letra', 'codigo_tipo', 'cod_tipo');
+    const C_PROJ = _findCol(/^projecao/, /^projec/, /^orcamento/, /^budget/, /^total/);
+
+    Logger.log('[ForecastData] months=' + JSON.stringify(months));
+    Logger.log('[ForecastData] cols detected: inibank=' + (C_INI && C_INI.rawHeader) +
+               ' iniciativa=' + (C_DESC && C_DESC.rawHeader) +
+               ' tipo=' + (C_TIPO && C_TIPO.rawHeader) +
+               ' item=' + (C_ITEM && C_ITEM.rawHeader) +
+               ' projecao=' + (C_PROJ && C_PROJ.rawHeader));
+
+    if (!C_INI)  Logger.log('[ForecastData] AVISO: coluna INIBANK não detectada — iniciativas serão agrupadas como "—"');
+    if (!C_TIPO) Logger.log('[ForecastData] AVISO: coluna Tipo não detectada — classificação de linhas falhará');
+    if (months.length === 0) Logger.log('[ForecastData] AVISO: nenhuma coluna mensal detectada');
+
+    function _num(v) {
+      if (typeof v === 'number') return v;
+      if (!v || v instanceof Date) return 0;
+      return parseFloat(
+        String(v).replace(/R\$\s*/g, '').replace(/\s/g, '')
+          .replace(/\./g, '').replace(',', '.')
+      ) || 0;
+    }
+
+    function _str(col) {
+      return (col && row => {
+        const v = row[col.i];
+        return v instanceof Date ? Utilities.formatDate(v, TZ, 'dd/MM/yyyy') : String(v || '').trim();
+      }) || (() => '');
+    }
+
+    const getIni  = _str(C_INI);
+    const getDesc = _str(C_DESC);
+    const getTipo = _str(C_TIPO);
+    const getItem = _str(C_ITEM);
+
     const rows = [];
     for (let r = 1; r < raw.length; r++) {
       const row = raw[r];
-      if (row.every(c => c === '' || c === null || c === undefined)) continue;
+      if (row.every(v => v === '' || v === null || v === undefined)) continue;
 
-      const obj = { _monthly: {} };
+      const monthly = {};
+      cols.filter(c => c.kind === 'month').forEach(c => { monthly[c.label] = _num(row[c.i]); });
 
-      colRoles.forEach(col => {
-        const v = row[col.idx];
-        if (col.kind === 'month') {
-          obj._monthly[col.label] = typeof v === 'number'
-            ? v
-            : (parseFloat(String(v || '').replace(/[R$\s]/g,'').replace(/\./g,'').replace(',','.')) || 0);
-        } else if (col.kind === 'field') {
-          obj[col.key] = v instanceof Date
-            ? Utilities.formatDate(v, TZ, 'dd/MM/yyyy')
-            : v;
-        }
+      let projecao = C_PROJ ? _num(row[C_PROJ.i]) : 0;
+      if (projecao === 0) projecao = Object.values(monthly).reduce((s, v) => s + v, 0);
+
+      rows.push({
+        inibank:       getIni(row),
+        iniciativa:    getDesc(row),
+        tipo:          getTipo(row),
+        item:          getItem(row),
+        projecao_2026: projecao,
+        _monthly:      monthly,
       });
-
-      // Ensure numeric projecao
-      const pKey = Object.keys(obj).find(k => k.startsWith('projecao') || k.startsWith('projeo'));
-      if (pKey && obj[pKey] !== undefined) {
-        obj.projecao_2026 = typeof obj[pKey] === 'number'
-          ? obj[pKey]
-          : (parseFloat(String(obj[pKey] || '').replace(/[R$\s]/g,'').replace(/\./g,'').replace(',','.')) || 0);
-      }
-      if (!obj.projecao_2026) {
-        obj.projecao_2026 = Object.values(obj._monthly).reduce((s, v) => s + v, 0);
-      }
-
-      rows.push(obj);
     }
+
+    Logger.log('[ForecastData] total linhas lidas: ' + rows.length +
+               (rows[0] ? ' | primeira: inibank=' + rows[0].inibank + ' tipo=' + rows[0].tipo : ''));
 
     return { rows, months };
   });

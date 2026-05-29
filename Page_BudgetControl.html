@@ -402,6 +402,7 @@ window.BudgetControl = (function () {
   function _buildGroups(rows) {
     var map = {}, order = [];
     rows.forEach(function (r) {
+      // Backend now returns standardized fields; fallback to alternatives for safety
       var inibank    = String(r.inibank || r.cod_iniciativa || r.codigo || '').trim() || '—';
       var iniciativa = String(r.iniciativa || r.descricao_iniciativa || r.descricao || '').trim();
       var tipo       = _normTipo(r.tipo || '');
@@ -413,12 +414,15 @@ window.BudgetControl = (function () {
       }
       if (!map[key].iniciativa && iniciativa) map[key].iniciativa = iniciativa;
 
-      // Compute projecao from monthly sum if not provided
-      var projecao = _R(r.projecao_2026 !== undefined ? r.projecao_2026 : (r.projecao !== undefined ? r.projecao : 0));
-      if (!projecao) {
-        projecao = Object.values(r._monthly || {}).reduce(function (s, v) { return s + _R(v); }, 0);
+      var projecao = _R(r.projecao_2026 !== undefined ? r.projecao_2026 : 0);
+      // if projecao is zero, try summing monthly values
+      if (projecao === 0 && r._monthly) {
+        var monthSum = Object.values(r._monthly).reduce(function (s, v) { return s + _R(v); }, 0);
+        if (monthSum !== 0) projecao = monthSum;
       }
 
+      // Only store if tipo is one of the known values, skip header/blank rows
+      if (!tipo) return;
       map[key].tipoRows[tipo] = { projecao: projecao, monthly: r._monthly || {}, item: String(r.item || '').trim() };
     });
 
@@ -612,8 +616,13 @@ window.BudgetControl = (function () {
     if (countLbl) countLbl.textContent = _visGroups.length + ' iniciativa' + (_visGroups.length !== 1 ? 's' : '');
 
     if (_visGroups.length === 0) {
-      if (thead) thead.innerHTML = '';
-      tbody.innerHTML = '<tr><td class="bc-placeholder" colspan="' + (3 + _months.length) + '">Nenhuma iniciativa encontrada.</td></tr>';
+      if (thead) thead.innerHTML = _buildThead();
+      var emptyMsg = _groups.length === 0 && _months.length === 0
+        ? 'Nenhum dado retornado da aba FORECAST. Verifique o console do Apps Script (Logger.log) para diagnóstico.'
+        : _groups.length === 0
+        ? 'Nenhuma iniciativa detectada. Verifique se a aba FORECAST possui colunas INIBANK e Tipo.'
+        : 'Nenhuma iniciativa encontrada para o filtro aplicado.';
+      tbody.innerHTML = '<tr><td class="bc-placeholder" colspan="' + (3 + _months.length) + '">' + emptyMsg + '</td></tr>';
       if (tfoot) tfoot.innerHTML = '';
       return;
     }
@@ -645,9 +654,12 @@ window.BudgetControl = (function () {
       .withSuccessHandler(function (res) {
         if (window.SyncMonitor) SyncMonitor.update('success', 'Forecast carregado', { gas: Date.now() - t0, cpu: 0 });
         if (!res || !res.success) {
-          if (tbody) tbody.innerHTML = '<tr><td class="bc-placeholder">Erro ao carregar dados.</td></tr>';
+          var msg = (res && res.message) ? res.message : 'Erro desconhecido';
+          console.error('[BudgetControl] Falha no servidor:', msg);
+          if (tbody) tbody.innerHTML = '<tr><td class="bc-placeholder">Erro ao carregar dados: ' + msg + '</td></tr>';
           return;
         }
+        console.log('[BudgetControl] resposta:', JSON.stringify({ rows: (res.rows||[]).length, months: res.months }));
         _rawRows = res.rows || [];
         _months  = res.months || [];
         _groups  = _buildGroups(_rawRows);
