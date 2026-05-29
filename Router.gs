@@ -561,10 +561,11 @@ function routerGetForecastData() {
     }
 
     function _str(col) {
-      return (col && row => {
+      if (!col) return function() { return ''; };
+      return function(row) {
         const v = row[col.i];
         return v instanceof Date ? Utilities.formatDate(v, TZ, 'dd/MM/yyyy') : String(v || '').trim();
-      }) || (() => '');
+      };
     }
 
     const getIni  = _str(C_INI);
