@@ -619,7 +619,8 @@ window.BudgetControl = (function () {
     html += '<td colspan="' + (3 + _months.length) + '">';
     html += '<span class="material-symbols-rounded bc-chevron' + (isCollapsed ? ' collapsed' : '') + '" id="chv-' + gId + '">expand_more</span>';
     html += '<span class="bc-inibank-badge">' + _esc(g.inibank) + '</span> ';
-    html += '<span style="font-size:0.82rem;font-weight:600;color:var(--c-on-surface);margin-left:6px;">' + _esc(g.iniciativa) + '</span>';
+    var nomeIni = (g.iniciativa && g.iniciativa !== g.inibank) ? g.iniciativa : '';
+    if (nomeIni) html += '<span style="font-size:0.82rem;font-weight:600;color:var(--c-on-surface);margin-left:6px;">' + _esc(nomeIni) + '</span>';
     html += '<span style="margin-left:12px;font-size:0.75rem;font-weight:600;color:var(--c-outline);">Realizado: </span>' + projR;
     html += '</td></tr>';
 

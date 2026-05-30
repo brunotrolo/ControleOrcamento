@@ -529,13 +529,30 @@ function routerGetForecastData(mesReferencia) {
     }
 
     const C_INI  = _findCol(/inibank/, /ini_bank/, /^codigo$/, /^cod$/, /^cod_ini/, /^ini$/, /^iniciativa$/);
-    const C_DESC = _findCol(
+
+    // C_DESC usa campos filtrados que excluem a coluna ja usada por C_INI,
+    // evitando que ambas apontem para "INICIATIVA" quando nao ha "INICIATIVA_DESCRICAO"
+    const fieldsExcIni = C_INI ? fields.filter(f => f.i !== C_INI.i) : fields;
+    function _findColIn(pool, ...patterns) {
+      return pool.find(c => patterns.some(p =>
+        typeof p === 'string' ? c.key === p : p.test(c.key)
+      ));
+    }
+    const C_DESC = _findColIn(fieldsExcIni,
       'iniciativa_descricao', 'descricao_iniciativa', 'nome_iniciativa',
       /iniciativa_desc/, /descricao_iniciativa/, /^descricao$/, /descr_ini/,
       /projeto/, /nome_projeto/, /iniciativa/
     );
-    const C_ITEM = _findCol('item', 'letra', 'codigo_tipo', 'cod_tipo', /direcao/, /item$/);
+
+    // C_DIR detecta a coluna de direcao (Soma / Subtracao) para filtrar linhas de ajuste
+    const C_DIR  = _findCol('iniciativa_direcao', 'direcao', /^direcao/, /^dir_/);
+    const C_ITEM = _findCol('item', 'letra', 'codigo_tipo', 'cod_tipo', /item$/);
     const C_PROJ = _findCol(/^projecao/, /^projec/, /^total_forecast$/, /^orcamento/, /^budget/, /^total/);
+
+    Logger.log('[ForecastData] cols: ini=' + (C_INI&&C_INI.rawHeader) +
+               ' desc=' + (C_DESC&&C_DESC.rawHeader) +
+               ' dir=' + (C_DIR&&C_DIR.rawHeader) +
+               ' proj=' + (C_PROJ&&C_PROJ.rawHeader));
 
     function _str(col) {
       if (!col) return function() { return ''; };
@@ -557,7 +574,14 @@ function routerGetForecastData(mesReferencia) {
       const row = raw[r];
       if (row.every(v => v === '' || v === null || v === undefined)) continue;
 
+      // Ignora linhas de subtracao/ajuste (INICIATIVA_DIRECAO = "Subtracao" ou similar)
+      if (C_DIR) {
+        const dir = _nk(String(row[C_DIR.i] || ''));
+        if (dir.includes('subtr') || dir === 'sub') continue;
+      }
+
       const inibank = getIni(row) || '—';
+      if (inibank === '—') continue;  // pula linhas sem codigo de iniciativa
       const desc    = getDesc(row);
       const item    = getItem(row);
 
@@ -568,15 +592,16 @@ function routerGetForecastData(mesReferencia) {
       if (projecao === 0) projecao = Object.values(monthly).reduce((s, v) => s + v, 0);
 
       if (!forecastMap[inibank]) {
-        forecastMap[inibank] = { desc: desc || '', item: item || '', monthly: monthly, projecao: projecao };
+        forecastMap[inibank] = { desc: desc || '', item: item || '', monthly: {}, projecao: 0 };
+        months.forEach(m => { forecastMap[inibank].monthly[m] = 0; });
         inibankOrder.push(inibank);
-      } else {
-        months.forEach(m => {
-          forecastMap[inibank].monthly[m] = (forecastMap[inibank].monthly[m] || 0) + (monthly[m] || 0);
-        });
-        forecastMap[inibank].projecao += projecao;
-        if (!forecastMap[inibank].desc && desc) forecastMap[inibank].desc = desc;
       }
+      // Soma todos os sub-itens (linhas "Soma") do mesmo inibank
+      months.forEach(m => {
+        forecastMap[inibank].monthly[m] = (forecastMap[inibank].monthly[m] || 0) + (monthly[m] || 0);
+      });
+      forecastMap[inibank].projecao += projecao;
+      if (!forecastMap[inibank].desc && desc) forecastMap[inibank].desc = desc;
     }
 
     Logger.log('[ForecastData] FORECAST: ' + inibankOrder.length + ' iniciativas, meses=' + months.length);
