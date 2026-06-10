@@ -903,7 +903,7 @@ function routerGetNotaFiscalCombined() {
     let prestadoresAtivos = 0;
     try {
       prestadoresAtivos = fetchAll(ALLOWED_SHEETS.PRESTADOR)
-        .filter(r => String(r.status_prestador || '').toLowerCase().includes('ativo')).length;
+        .filter(r => String(r.status_prestador || '').trim().toLowerCase() === 'ativo').length;
     } catch (e) {
       Logger.log('[NotaFiscalCombined] PRESTADOR indisponivel: ' + e.message);
     }
