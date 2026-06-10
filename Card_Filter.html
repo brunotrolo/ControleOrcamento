@@ -237,9 +237,35 @@ window.CardFilter = (function() {
   var _values = {};
   var _filters = {};
   var _callback = null;
+  var _defaultsApplied = false;
+
+  var _MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
   function _esc(v) {
     return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Converte competência "MM/yyyy" → "MES/yyyy" (mesmo formato usado nos checkboxes)
+  function _fmtComp(val) {
+    var m = String(val).match(/(\d{2})\/(\d{4})/);
+    if (m) return (_MESES[parseInt(m[1]) - 1] || m[1]) + '/' + m[2];
+    return val;
+  }
+
+  // Define as seleções padrão: Status = "Autorizada" e Competência = mês mais recente.
+  // Os valores de competência chegam do servidor ordenados de forma decrescente
+  // (mais recente primeiro) e derivados apenas de linhas preenchidas da NOTA_FISCAL,
+  // então o primeiro item é o mês mais atual com algum preenchimento.
+  function _applyDefaults() {
+    var status = _values['status_nfe'] || [];
+    if (status.indexOf('Autorizada') !== -1) {
+      _filters['status_nfe'] = ['Autorizada'];
+    }
+
+    var comps = _values['competencia'] || [];
+    if (comps.length > 0) {
+      _filters['competencia'] = [_fmtComp(comps[0])];
+    }
   }
 
   function _emit() {
@@ -393,8 +419,15 @@ window.CardFilter = (function() {
           SyncMonitor.update('warning', 'Nenhum dado para filtrar');
           return;
         }
-        
+
+        // Aplica seleções padrão apenas na primeira carga (preserva escolhas do usuário no refresh)
+        if (!_defaultsApplied) {
+          _defaultsApplied = true;
+          _applyDefaults();
+        }
+
         _render();
+        _emit();
         SyncMonitor.update('success', 'Filtros carregados', {
           gas: res.metrics ? res.metrics.executionTime : 0,
           cpu: performance.now() - t0
@@ -429,8 +462,15 @@ window.CardFilter = (function() {
     _values = {};
     _filters = {};
     _callback = null;
+    _defaultsApplied = false;
   }
 
-  return { initialize, cleanup };
+  function getFilters() {
+    var copy = {};
+    Object.keys(_filters).forEach(function(k) { copy[k] = (_filters[k] || []).slice(); });
+    return copy;
+  }
+
+  return { initialize, cleanup, getFilters };
 })();
 </script>

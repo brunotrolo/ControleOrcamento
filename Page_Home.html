@@ -779,7 +779,9 @@
         if(!res.success){SyncMonitor.update('error','Erro');return;}
         _allData=res.data||[];
         _loaded=true;
-        renderAll(_allData);
+        // Respeita filtros padrão do Card_Filter (Status=Autorizada, Competência=mês mais recente)
+        var f = (typeof CardFilter !== 'undefined' && CardFilter.getFilters) ? CardFilter.getFilters() : null;
+        renderAll(f ? applyFilters(_allData, f) : _allData);
         SyncMonitor.update('success','Carregado',{
           gas:res.metrics?res.metrics.executionTime:0,
           cpu:performance.now()-t0
