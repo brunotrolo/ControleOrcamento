@@ -450,34 +450,48 @@ function routerGetFilterValues(sheetName, fieldKeys) {
 
     // Lê a aba FORECAST para saber quais iniciativas estao Ativas
     // Usada pelo Card_Filter para pre-selecionar apenas Ativas no picklist de Iniciativa
-    const activeIniciativas = [];
-    const iniciativaLabels  = {};
+    // Opções do filtro de Iniciativa vêm da aba FORECAST (não da NOTA_FISCAL),
+    // garantindo que TODAS as iniciativas ativas apareçam — mesmo sem nota fiscal.
+    //   code   = coluna A (INICIATIVA)
+    //   label  = "código - descrição" (coluna A + coluna B INICIATIVA_DESCRICAO)
+    //   active = status (coluna D) != Encerrada/Cancelada/Inativa
+    const activeIniciativas = [];   // mantido p/ retrocompat
+    const iniciativaLabels  = {};   // mantido p/ retrocompat
+    const iniciativaOptions = [];   // [{ code, label, active }]
     if (fieldKeys.indexOf('iniciativa') !== -1) {
       try {
+        // Invalida o cache de cabeçalhos para refletir a nova coluna STATUS
+        // adicionada na aba FORECAST (evita leitura desalinhada por cache antigo).
+        invalidateHeaderCache(ALLOWED_SHEETS.FORECAST);
         const forecastRows = fetchAll(ALLOWED_SHEETS.FORECAST);
         const activeSet = new Set();
+        const seenIni   = new Set();
         forecastRows.forEach(fr => {
           const ini = String(fr.iniciativa || '').trim();
           if (!ini) return;
           const st = String(fr.status || '').trim().toLowerCase()
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          if (!st.includes('encerr') && !st.includes('cancel') && !st.includes('inativ')) {
-            activeSet.add(ini);
-          }
-          // Primeira descricao nao-vazia por codigo vira o rotulo "codigo - descricao"
-          // codigo = coluna A (INICIATIVA), descricao = coluna B (INICIATIVA_DESCRICAO)
+          const isActive = !st.includes('encerr') && !st.includes('cancel') && !st.includes('inativ');
+          if (isActive) activeSet.add(ini);
           if (!iniciativaLabels[ini]) {
             const desc = String(fr.iniciativa_descricao || '').trim();
             iniciativaLabels[ini] = desc ? (ini + ' - ' + desc) : ini;
           }
+          if (!seenIni.has(ini)) {
+            seenIni.add(ini);
+            iniciativaOptions.push({ code: ini, label: iniciativaLabels[ini], active: false });
+          }
         });
+        // Uma iniciativa é ativa se QUALQUER linha dela for ativa
+        iniciativaOptions.forEach(o => { o.active = activeSet.has(o.code); });
+        iniciativaOptions.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
         activeSet.forEach(v => activeIniciativas.push(v));
       } catch(e) {
-        Logger.log('[FilterValues] Nao foi possivel ler status de FORECAST: ' + e.message);
+        Logger.log('[FilterValues] Nao foi possivel ler FORECAST: ' + e.message);
       }
     }
 
-    return { filterValues, activeIniciativas, iniciativaLabels };
+    return { filterValues, activeIniciativas, iniciativaLabels, iniciativaOptions };
   });
 }
 

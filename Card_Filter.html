@@ -239,7 +239,8 @@ window.CardFilter = (function() {
   var _callback = null;
   var _defaultsApplied = false;
   var _activeIniciativas = [];
-  var _iniLabels = {};  // { código → "código - descrição" } vindo do FORECAST
+  var _iniLabels = {};   // { código → "código - descrição" } vindo do FORECAST
+  var _iniOptions = [];  // [{ code, label, active }] — opções do filtro Iniciativa (FORECAST)
 
   var _MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
@@ -264,22 +265,32 @@ window.CardFilter = (function() {
       _filters['status_nfe'] = ['Autorizada'];
     }
 
-    // comps chegam ordenados decrescente ("MM/yyyy"); o primeiro é o mês mais recente.
-    // Ano vigente = ano desse mês; marca todas as competências desse ano.
+    // Competência: marca TODOS os meses do ano vigente.
+    // Ano vigente = maior ano presente nas competências da NOTA_FISCAL.
     var comps = _values['competencia'] || [];
     if (comps.length > 0) {
-      var m = String(comps[0]).match(/(\d{2})\/(\d{4})/);
-      var anoVigente = m ? m[2] : null;
-      if (anoVigente) {
+      var maxYear = 0;
+      comps.forEach(function (c) {
+        var mm = String(c).match(/\/(\d{4})/) || String(c).match(/(\d{4})/);
+        if (mm) { var y = parseInt(mm[1]); if (y > maxYear) maxYear = y; }
+      });
+      if (maxYear > 0) {
         _filters['competencia'] = comps
-          .filter(function (c) { return String(c).indexOf('/' + anoVigente) !== -1; })
+          .filter(function (c) { return String(c).indexOf('/' + maxYear) !== -1; })
           .map(_fmtComp);
       } else {
-        _filters['competencia'] = [_fmtComp(comps[0])];
+        _filters['competencia'] = comps.map(_fmtComp);
       }
     }
 
-    if (_activeIniciativas.length > 0) {
+    // Iniciativa: marca por padrão as ATIVAS (do FORECAST).
+    if (_iniOptions.length > 0) {
+      var activeCodes = _iniOptions
+        .filter(function (o) { return o.active; })
+        .map(function (o) { return o.code; });
+      if (activeCodes.length > 0) _filters['iniciativa'] = activeCodes;
+    } else if (_activeIniciativas.length > 0) {
+      // fallback: cruza ativas com valores da NOTA_FISCAL
       var activeSet = {};
       _activeIniciativas.forEach(function (v) { activeSet[v] = true; });
       var iniVals  = _values['iniciativa'] || [];
@@ -349,11 +360,22 @@ window.CardFilter = (function() {
         });
         html += '</div>';
       });
+    } else if (field.key === 'iniciativa' && _iniOptions.length > 0) {
+      // Lista de Iniciativa vem do FORECAST: mostra "código - descrição",
+      // valor do checkbox = código (preserva matching com a NOTA_FISCAL)
+      _iniOptions.forEach(function(opt) {
+        var val = opt.code;
+        var id = 'cb_iniciativa_' + _esc(val);
+        var chk = sel.indexOf(val) !== -1;
+        html += '<div class="picklist-option">' +
+          '<input type="checkbox" id="' + id + '" data-field="iniciativa" value="' + _esc(val) + '"' + (chk ? ' checked' : '') + '>' +
+          '<label for="' + id + '" title="' + _esc(opt.label) + '">' + _esc(opt.label) + '</label>' +
+          '</div>';
+      });
     } else {
       vals.forEach(function(val) {
         var id = 'cb_' + _esc(field.key) + '_' + _esc(val);
         var chk = sel.indexOf(val) !== -1;
-        // Para Iniciativa, exibe "código - descrição" (do FORECAST) mas mantém o valor = código
         var labelTxt = (field.key === 'iniciativa' && _iniLabels[val]) ? _iniLabels[val] : val;
         html += '<div class="picklist-option">' +
           '<input type="checkbox" id="' + id + '" data-field="' + _esc(field.key) + '" value="' + _esc(val) + '"' + (chk ? ' checked' : '') + '>' +
@@ -437,6 +459,9 @@ window.CardFilter = (function() {
           _activeIniciativas = res.activeIniciativas;
         }
         if (res.iniciativaLabels) _iniLabels = res.iniciativaLabels;
+        if (res.iniciativaOptions && res.iniciativaOptions.length > 0) {
+          _iniOptions = res.iniciativaOptions;
+        }
 
         // Validar se valores estão vazios
         var hasValues = Object.keys(_values).some(function(k) { return _values[k] && _values[k].length > 0; });
@@ -491,6 +516,7 @@ window.CardFilter = (function() {
     _defaultsApplied = false;
     _activeIniciativas = [];
     _iniLabels = {};
+    _iniOptions = [];
   }
 
   function getFilters() {
