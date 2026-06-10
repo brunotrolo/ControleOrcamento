@@ -698,9 +698,11 @@ window.BudgetControl = (function () {
     });
 
     function tipoRow(tipo, label, proj, key, cls) {
+      var item = TIPO_ITEMS[tipo] || '';
       var html = '<tr>';
       html += '<td style="text-align:left;position:sticky;left:0;z-index:4;">';
       html += '<span class="bc-tipo-badge ' + cls + '">' + label + '</span></td>';
+      html += '<td style="text-align:right;"><span class="bc-item-chip">' + _esc(item) + '</span></td>';
       html += '<td style="text-align:right;">' + _fmtColored(proj, tipo) + '</td>';
       vm.forEach(function (m) {
         html += '<td>' + _fmtColored(totals[m][key], tipo) + '</td>';
