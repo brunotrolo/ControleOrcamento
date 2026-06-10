@@ -1345,7 +1345,7 @@
     return '';
   }
 
-  function _normNome(v){ return String(v||'').trim().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
+  function _normNome(v){ return String(v||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
 
   // Achata as linhas de profissionais (aba NOTA_FISCAL_ANALITICO) de cada NF
   // autorizada em entradas individuais. APENAS aqui a INICIATIVA e o FORNECEDOR
