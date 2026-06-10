@@ -465,7 +465,7 @@ function routerGetFilterValues(sheetName, fieldKeys) {
     const _nkF = function (v) {
       if (v instanceof Date || v == null) return '';
       return String(v).trim()
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '');
     };
     const _fFind = function (headers, pats) {
@@ -917,15 +917,33 @@ function routerGetNotaFiscalCombined() {
     };
 
     try {
-      fetchAll(ALLOWED_SHEETS.PRESTADOR).forEach(r => {
-        const status = _statusLabel(r.status_prestador || r.status);
+      const prRows = fetchAll(ALLOWED_SHEETS.PRESTADOR);
+      // Detecta as colunas pelos cabeçalhos reais (chaves normalizadas pelo DAO),
+      // evitando depender de nomes fixos — origem do bug "lista vazia".
+      const prKeys = prRows.length ? Object.keys(prRows[0]).filter(k => k !== '__rowNumber') : [];
+      const _find = (pats, exclude) => {
+        for (const k of prKeys) {
+          if (exclude && exclude.test(k)) continue;
+          if (pats.some(p => p.test(k))) return k;
+        }
+        return null;
+      };
+      const K_STATUS = _find([/status/, /situac/]);
+      const K_MAT    = _find([/matric/, /^codigo$/, /^cod_/, /^cod$/, /^id$/]);
+      // nome: evita pegar "nome_fantasia"/"razao" de empresa; prioriza nome do prestador/profissional
+      const K_NOME   = _find([/nome_prestador/, /nome_profissional/, /nome_completo/, /^nome$/, /nome/], /fantasia|razao|empresa/);
+      const K_PAPEL  = _find([/papel/, /funcao/, /cargo/, /perfil/, /especialidad/]);
+
+      prRows.forEach(r => {
+        const status = _statusLabel(K_STATUS ? r[K_STATUS] : '');
         if (status === 'Ativo') prestadoresAtivos++;
-        const mat   = String(r.matricula || r.matricula_prestador || r.codigo || '').trim();
-        const nome  = String(r.nome_prestador || r.nome_profissional || r.nome || '').trim();
-        const papel = String(r.papel_prestador || r.papel || r.funcao || r.cargo || r.perfil || '').trim();
+        const mat   = String((K_MAT  ? r[K_MAT]  : '') || '').trim();
+        const nome  = String((K_NOME ? r[K_NOME] : '') || '').trim();
+        const papel = String((K_PAPEL? r[K_PAPEL]: '') || '').trim();
         if (!mat && !nome) return;
         prestadores.push({ mat: mat, nome: nome, status: status, papel: papel });
       });
+      Logger.log('[NotaFiscalCombined] PRESTADOR: ' + prestadores.length + ' prestadores (mat=' + K_MAT + ' nome=' + K_NOME + ' status=' + K_STATUS + ' papel=' + K_PAPEL + ')');
     } catch (e) {
       Logger.log('[NotaFiscalCombined] PRESTADOR indisponivel: ' + e.message);
     }
