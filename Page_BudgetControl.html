@@ -345,6 +345,7 @@
 .bc-badge-realizado { background: color-mix(in srgb,#059669 12%,transparent); color: #059669; }
 .bc-badge-resultado { background: color-mix(in srgb,#7c3aed 12%,transparent); color: #7c3aed; }
 .bc-badge-ajustado  { background: color-mix(in srgb,#d97706 12%,transparent); color: #d97706; }
+.bc-badge-estimado  { background: color-mix(in srgb,#0891b2 12%,transparent); color: #0891b2; }
 
 .bc-item-chip {
   display: inline-block;
@@ -446,13 +447,14 @@ window.BudgetControl = (function () {
     return 'Ativa';
   }
 
-  var TIPO_ORDER = ['Forecast', 'Realizado', 'Resultado', 'Forecast Ajustado'];
-  var TIPO_ITEMS = { 'Forecast': 'A', 'Realizado': 'B', 'Resultado': 'A-B=C', 'Forecast Ajustado': 'FA' };
-  var TIPO_BADGE = { 'Forecast': 'bc-badge-forecast', 'Realizado': 'bc-badge-realizado', 'Resultado': 'bc-badge-resultado', 'Forecast Ajustado': 'bc-badge-ajustado' };
+  var TIPO_ORDER = ['Forecast', 'Realizado', 'Resultado', 'Forecast Ajustado', 'Estimado'];
+  var TIPO_ITEMS = { 'Forecast': 'A', 'Realizado': 'B', 'Resultado': 'A-B=C', 'Forecast Ajustado': 'FA', 'Estimado': 'E' };
+  var TIPO_BADGE = { 'Forecast': 'bc-badge-forecast', 'Realizado': 'bc-badge-realizado', 'Resultado': 'bc-badge-resultado', 'Forecast Ajustado': 'bc-badge-ajustado', 'Estimado': 'bc-badge-estimado' };
 
   function _normTipo(t) {
     var s = String(t || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     var clean = s.replace(/\s/g, '');
+    if (s.includes('estim') || s === 'e') return 'Estimado';
     if (s.includes('ajust') || (s.includes('fa') && s.includes('forecast'))) return 'Forecast Ajustado';
     if (s === 'fa' || s === '5' || s === '6') return 'Forecast Ajustado';
     if (s.includes('forecast') || s === 'a') return 'Forecast';
@@ -553,15 +555,16 @@ window.BudgetControl = (function () {
   }
 
   function _computeSummary() {
-    var tF = 0, tR = 0, tFA = 0;
+    var tF = 0, tR = 0, tFA = 0, tEst = 0;
     _visGroups.forEach(function (g) {
       if (g.tipoRows['Forecast'])           tF  = _R(tF  + g.tipoRows['Forecast'].projecao);
       if (g.tipoRows['Realizado'])          tR  = _R(tR  + g.tipoRows['Realizado'].projecao);
       if (g.tipoRows['Forecast Ajustado']) tFA = _R(tFA + g.tipoRows['Forecast Ajustado'].projecao);
+      if (g.tipoRows['Estimado'])           tEst = _R(tEst + g.tipoRows['Estimado'].projecao);
     });
     var saldo = _R(tF - tR);
     var pct   = tF ? Math.min(100, Math.round((tR / tF) * 100)) : 0;
-    return { tF: tF, tR: tR, saldo: saldo, tFA: tFA, pct: pct };
+    return { tF: tF, tR: tR, saldo: saldo, tFA: tFA, tEst: tEst, pct: pct };
   }
 
   function _fmtBig(n) {
@@ -600,6 +603,11 @@ window.BudgetControl = (function () {
         '<div class="bc-kpi-label">Forecast Ajustado</div>' +
         '<div class="bc-kpi-value">' + (s.tFA ? _fmtBig(s.tFA) : '<span style="color:var(--c-outline)">—</span>') + '</div>' +
         '<div class="bc-kpi-sub">Projeção revisada</div>' +
+      '</div>' +
+      '<div class="bc-kpi" style="--bc-kpi-accent:#0891b2">' +
+        '<div class="bc-kpi-label">Estimado</div>' +
+        '<div class="bc-kpi-value">' + (s.tEst ? _fmtBig(s.tEst) : '<span style="color:var(--c-outline)">—</span>') + '</div>' +
+        '<div class="bc-kpi-sub">Meses futuros do ano</div>' +
       '</div>';
     el.style.display = 'grid';
   }
@@ -622,18 +630,19 @@ window.BudgetControl = (function () {
 
   function _buildTfoot(allGroups) {
     var totals = {};
-    _months.forEach(function (m) { totals[m] = { F: 0, R: 0, Res: 0, FA: 0 }; });
-    var tProjF = 0, tProjR = 0, tProjRes = 0, tProjFA = 0;
+    _months.forEach(function (m) { totals[m] = { F: 0, R: 0, Res: 0, FA: 0, Est: 0 }; });
+    var tProjF = 0, tProjR = 0, tProjRes = 0, tProjFA = 0, tProjEst = 0;
 
     allGroups.forEach(function (g) {
       TIPO_ORDER.forEach(function (tipo) {
         if (!g.tipoRows[tipo]) return;
         var row = g.tipoRows[tipo];
-        var key = tipo === 'Forecast' ? 'F' : tipo === 'Realizado' ? 'R' : tipo === 'Resultado' ? 'Res' : 'FA';
+        var key = tipo === 'Forecast' ? 'F' : tipo === 'Realizado' ? 'R' : tipo === 'Resultado' ? 'Res' : tipo === 'Forecast Ajustado' ? 'FA' : 'Est';
         if (tipo === 'Forecast')           tProjF   = _R(tProjF   + row.projecao);
         if (tipo === 'Realizado')          tProjR   = _R(tProjR   + row.projecao);
         if (tipo === 'Resultado')          tProjRes = _R(tProjRes + row.projecao);
         if (tipo === 'Forecast Ajustado') tProjFA  = _R(tProjFA  + row.projecao);
+        if (tipo === 'Estimado')           tProjEst = _R(tProjEst + row.projecao);
         _months.forEach(function (m) {
           totals[m][key] = _R((totals[m][key] || 0) + (row.monthly[m] || 0));
         });
@@ -655,7 +664,8 @@ window.BudgetControl = (function () {
     return tipoRow('Forecast', 'Forecast', tProjF, 'F', 'bc-badge-forecast') +
            tipoRow('Realizado', 'Realizado', tProjR, 'R', 'bc-badge-realizado') +
            tipoRow('Resultado', 'Resultado', tProjRes, 'Res', 'bc-badge-resultado') +
-           tipoRow('Forecast Ajustado', 'F. Ajust.', tProjFA, 'FA', 'bc-badge-ajustado');
+           tipoRow('Forecast Ajustado', 'F. Ajust.', tProjFA, 'FA', 'bc-badge-ajustado') +
+           tipoRow('Estimado', 'Estimado', tProjEst, 'Est', 'bc-badge-estimado');
   }
 
   function _buildGroupRows(g, idx) {

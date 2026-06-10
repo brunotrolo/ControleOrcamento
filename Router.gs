@@ -40,6 +40,7 @@ const ALLOWED_SHEETS = {
   FORNECEDOR:           "FORNECEDOR",
   PRESTADOR:            "PRESTADOR",
   FORECAST:             "FORECAST",
+  ESTIMATIVA:           "ESTIMATIVA",
   HISTOGRAMA:           "HISTOGRAMA",
 };
 
@@ -697,6 +698,60 @@ function routerGetForecastData(mesReferencia) {
 
     Logger.log('[ForecastData] NOTA_FISCAL: ' + Object.keys(realizadoMap).length + ' iniciativas com realizado');
 
+    // ── Lê aba ESTIMATIVA → agrega por inibank + mês ────────────────────
+    // estimativaMap: { inibank → { monthly: {label→val} } }
+    const estimativaMap = {};
+    try {
+      const { sheet: estSheet } = _openSheet(ALLOWED_SHEETS.ESTIMATIVA);
+      const estLastRow = estSheet.getLastRow();
+      const estLastCol = estSheet.getLastColumn();
+      if (estLastRow >= 2) {
+        const estRaw     = estSheet.getRange(1, 1, estLastRow, estLastCol).getValues();
+        const estHeaders = estRaw[0];
+        const estCols = estHeaders.map((h, i) => {
+          const mLabel = _monthLabel(h);
+          if (mLabel) return { kind: 'month', label: mLabel, i };
+          const key = _nk(h);
+          if (!key) return { kind: 'skip', i };
+          return { kind: 'field', key, i };
+        });
+        const estFields = estCols.filter(c => c.kind === 'field');
+        const estMonthCols = estCols.filter(c => c.kind === 'month');
+        function _estFind() {
+          const pats = Array.prototype.slice.call(arguments);
+          return estFields.find(c => pats.some(p =>
+            typeof p === 'string' ? c.key === p : p.test(c.key)));
+        }
+        const EC_INI = _estFind(/inibank/, /ini_bank/, /^codigo$/, /^cod$/, /^cod_ini/, /^ini$/, /^iniciativa$/);
+        const EC_DIR = _estFind('iniciativa_direcao', 'direcao', /^direcao/, /^dir_/);
+
+        for (let r = 1; r < estRaw.length; r++) {
+          const row = estRaw[r];
+          if (row.every(v => v === '' || v === null || v === undefined)) continue;
+
+          let sign = 1;
+          if (EC_DIR) {
+            const dir = _nk(String(row[EC_DIR.i] || ''));
+            if (dir.includes('subtr') || dir === 'sub') sign = -1;
+          }
+
+          const inibank = EC_INI
+            ? (row[EC_INI.i] instanceof Date ? '' : String(row[EC_INI.i] || '').trim())
+            : '';
+          if (!inibank) continue;
+
+          if (!estimativaMap[inibank]) estimativaMap[inibank] = { monthly: {} };
+          estMonthCols.forEach(c => {
+            estimativaMap[inibank].monthly[c.label] =
+              (estimativaMap[inibank].monthly[c.label] || 0) + sign * _num(row[c.i]);
+          });
+        }
+      }
+      Logger.log('[ForecastData] ESTIMATIVA: ' + Object.keys(estimativaMap).length + ' iniciativas');
+    } catch (e) {
+      Logger.log('[ForecastData] ESTIMATIVA indisponivel: ' + e.message);
+    }
+
     // ── Resolve mesReferencia ─────────────────────────────────────────────
     let mesRef = String(mesReferencia || '').trim();
     if (!mesRef && lastRealMonth.label) mesRef = lastRealMonth.label;
@@ -760,12 +815,21 @@ function routerGetForecastData(mesReferencia) {
       }
       const faProj = months.reduce((s, m) => s + faMonthly[m], 0);
 
+      // ── Estimado: valores da aba ESTIMATIVA apenas para os meses ─────────
+      // posteriores ao mês de competência até o fim do ano vigente
+      const eData = estimativaMap[inibank] || { monthly: {} };
+      const estMonthly = {};
+      months.forEach(m => { estMonthly[m] = 0; });
+      futureMonths.forEach(m => { estMonthly[m] = eData.monthly[m] || 0; });
+      const estProj = months.reduce((s, m) => s + estMonthly[m], 0);
+
       const status = fData.status || 'Ativa';
       rows.push(
         { inibank, iniciativa: fData.desc, status, tipo: 'Forecast',          item: 'A',     projecao_2026: fProj,   _monthly: fMonthly   },
         { inibank, iniciativa: fData.desc, status, tipo: 'Realizado',         item: 'B',     projecao_2026: rProj,   _monthly: rMonthly   },
         { inibank, iniciativa: fData.desc, status, tipo: 'Resultado',         item: 'A-B=C', projecao_2026: resProj, _monthly: resMonthly },
-        { inibank, iniciativa: fData.desc, status, tipo: 'Forecast Ajustado', item: 'FA',    projecao_2026: faProj,  _monthly: faMonthly  }
+        { inibank, iniciativa: fData.desc, status, tipo: 'Forecast Ajustado', item: 'FA',    projecao_2026: faProj,  _monthly: faMonthly  },
+        { inibank, iniciativa: fData.desc, status, tipo: 'Estimado',          item: 'E',     projecao_2026: estProj, _monthly: estMonthly }
       );
     });
 
