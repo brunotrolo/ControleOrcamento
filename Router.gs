@@ -816,12 +816,16 @@ function routerGetForecastData(mesReferencia) {
       const rMonthly = {};
       months.forEach(m => { rMonthly[m] = rData.monthly[m] || 0; });
 
-      const resMonthly = {};
-      months.forEach(m => { resMonthly[m] = (fMonthly[m] || 0) - (rMonthly[m] || 0); });
+      const fProj = months.reduce((s, m) => s + (fMonthly[m] || 0), 0);
+      const rProj = months.reduce((s, m) => s + (rMonthly[m] || 0), 0);
 
-      const fProj   = months.reduce((s, m) => s + (fMonthly[m] || 0), 0);
-      const rProj   = months.reduce((s, m) => s + (rMonthly[m] || 0), 0);
-      const resProj = fProj - rProj;
+      // Resultado: F-R apenas até o mês de referência (inclusive).
+      // Meses futuros ficam zerados — a projeção futura é papel do FA e Estimado.
+      const resMonthly = {};
+      months.forEach((m, i) => {
+        resMonthly[m] = i <= refIdx ? (fMonthly[m] || 0) - (rMonthly[m] || 0) : 0;
+      });
+      const resProj = months.reduce((s, m, i) => i <= refIdx ? s + resMonthly[m] : s, 0);
 
       const rAteRef = months.reduce((s, m, i) => {
         if (i <= refIdx) s += (rMonthly[m] || 0);
