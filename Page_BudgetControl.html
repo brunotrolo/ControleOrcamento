@@ -344,6 +344,22 @@
 .bc-badge-ajustado  { background: color-mix(in srgb,#d97706 12%,transparent); color: #d97706; }
 .bc-badge-estimado  { background: color-mix(in srgb,#0891b2 12%,transparent); color: #0891b2; }
 
+/* Selo de controle por iniciativa (Estimado x Forecast Ajustado) */
+.bc-ctrl-badge {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 10px 2px 7px;
+  white-space: nowrap;
+}
+.bc-ctrl-badge .material-symbols-rounded { font-size: 15px; line-height: 1; }
+.bc-ctrl-over { background: color-mix(in srgb,#dc2626 14%,transparent); color: #dc2626; }
+.bc-ctrl-ok   { background: color-mix(in srgb,#059669 14%,transparent); color: #059669; }
+
 .bc-item-chip {
   display: inline-block;
   font-family: 'DM Mono', monospace;
@@ -470,6 +486,31 @@ window.BudgetControl = (function () {
   // Soma os valores mensais de uma linha apenas nos meses informados.
   function _sumMonths(monthly, vm) {
     return vm.reduce(function (s, m) { return _R(s + (monthly[m] || 0)); }, 0);
+  }
+
+  // Status de controle de uma iniciativa: compara Estimado x Forecast Ajustado.
+  // Estimado > FA  → estouro (projeção futura excede o saldo disponível do forecast).
+  function _controlStatus(g, vm) {
+    var fa  = g.tipoRows['Forecast Ajustado'] ? _sumMonths(g.tipoRows['Forecast Ajustado'].monthly, vm) : 0;
+    var est = g.tipoRows['Estimado']          ? _sumMonths(g.tipoRows['Estimado'].monthly, vm) : 0;
+    var tol = 0.005;
+    if (est <= tol && fa <= tol) return { state: 'none', fa: fa, est: est };
+    if (est > fa + tol)         return { state: 'over', fa: fa, est: est };
+    return { state: 'ok', fa: fa, est: est };
+  }
+
+  function _ctrlBadge(st) {
+    if (st.state === 'over') {
+      return '<span class="bc-ctrl-badge bc-ctrl-over" title="Estimado ' + _fmtBig(st.est) +
+        ' &gt; Forecast Ajustado ' + _fmtBig(st.fa) + '">' +
+        '<span class="material-symbols-rounded">warning</span>Fora do forecast</span>';
+    }
+    if (st.state === 'ok') {
+      return '<span class="bc-ctrl-badge bc-ctrl-ok" title="Estimado ' + _fmtBig(st.est) +
+        ' &le; Forecast Ajustado ' + _fmtBig(st.fa) + '">' +
+        '<span class="material-symbols-rounded">check_circle</span>Dentro do controle</span>';
+    }
+    return '';
   }
 
   // Lê os filtros atuais diretamente do Card_Filter (fonte da verdade),
@@ -646,11 +687,18 @@ window.BudgetControl = (function () {
         '<div class="bc-kpi-value">' + (s.tFA ? _fmtBig(s.tFA) : '<span style="color:var(--c-outline)">—</span>') + '</div>' +
         '<div class="bc-kpi-sub">Projeção revisada</div>' +
       '</div>' +
-      '<div class="bc-kpi" style="--bc-kpi-accent:#0891b2">' +
-        '<div class="bc-kpi-label">Estimado</div>' +
-        '<div class="bc-kpi-value">' + (s.tEst ? _fmtBig(s.tEst) : '<span style="color:var(--c-outline)">—</span>') + '</div>' +
-        '<div class="bc-kpi-sub">Meses futuros do ano</div>' +
-      '</div>';
+      (function () {
+        var estOver  = s.tEst > s.tFA + 0.005;
+        var estColor = estOver ? '#dc2626' : '#059669';
+        var estSub   = estOver
+          ? '⚠ Acima do Forecast Ajustado'
+          : '✓ Dentro do Forecast Ajustado';
+        return '<div class="bc-kpi" style="--bc-kpi-accent:' + estColor + '">' +
+          '<div class="bc-kpi-label">Estimado</div>' +
+          '<div class="bc-kpi-value" style="color:' + estColor + '">' + (s.tEst ? _fmtBig(s.tEst) : '<span style="color:var(--c-outline)">—</span>') + '</div>' +
+          '<div class="bc-kpi-sub" style="color:' + estColor + ';font-weight:600;">' + estSub + '</div>' +
+        '</div>';
+      })();
     el.style.display = 'grid';
   }
 
@@ -731,6 +779,7 @@ window.BudgetControl = (function () {
     var nomeIni = (g.iniciativa && g.iniciativa !== g.inibank) ? g.iniciativa : '';
     if (nomeIni) html += '<span style="font-size:0.82rem;font-weight:600;color:var(--c-on-surface);margin-left:6px;">' + _esc(nomeIni) + '</span>';
     html += '<span style="margin-left:12px;font-size:0.75rem;font-weight:600;color:var(--c-outline);">Realizado: </span>' + projR;
+    html += _ctrlBadge(_controlStatus(g, vm));
     html += '</td></tr>';
 
     TIPO_ORDER.forEach(function (tipo) {
