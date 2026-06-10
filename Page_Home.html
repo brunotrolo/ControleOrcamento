@@ -36,23 +36,77 @@
   border-color: var(--c-primary);
   color: #fff;
 }
-.evo-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  padding: 10px 4px 2px;
-}
-.evo-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.7rem;
-  color: var(--c-on-surface-variant);
-}
 .evo-legend-dot {
   width: 10px; height: 10px;
   border-radius: 3px;
   flex-shrink: 0;
+}
+
+/* Layout: gráfico (esquerda) + distribuição/legenda (direita) */
+.evo-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(240px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 820px) {
+  .evo-layout { grid-template-columns: 1fr; }
+}
+.evo-chart { min-height: 240px; }
+
+.evo-dist {
+  border-left: 1px solid var(--c-outline-variant);
+  padding-left: 18px;
+}
+@media (max-width: 820px) {
+  .evo-dist { border-left: none; padding-left: 0; border-top: 1px solid var(--c-outline-variant); padding-top: 14px; }
+}
+.evo-dist.is-clickable { cursor: pointer; }
+.evo-dist-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-on-surface-variant);
+  margin-bottom: 12px;
+}
+.evo-dist-row { margin-bottom: 10px; }
+.evo-dist-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+.evo-dist-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--c-on-surface);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.evo-dist-pct {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  color: var(--c-on-surface-variant);
+  flex-shrink: 0;
+}
+.evo-dist-bar {
+  height: 6px;
+  background: var(--c-surface-cont);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.evo-dist-bar > div { height: 100%; border-radius: 4px; }
+.evo-dist-val {
+  font-size: 0.66rem;
+  color: var(--c-outline);
+  font-family: 'DM Mono', monospace;
+  margin-top: 2px;
 }
 
 .home-two-col {
@@ -208,13 +262,13 @@
 
 <div id="view-home-content">
 
-  <!-- Row 1: Evolução Mensal + Distribuição por Iniciativa -->
-  <div id="home-row1" class="home-two-col" style="display:none;">
+  <!-- Row 1: Evolução Mensal de Custos (full width) + distribuição/legenda -->
+  <div id="home-row1" style="display:none;margin-top:20px;">
     <div class="card">
       <div class="card-header is-clickable" id="hdr-evolucao">
         <div>
           <h3>Evolução Mensal de Custos</h3>
-          <div class="card-subtitle">Custo realizado por competência — clique para detalhes</div>
+          <div class="card-subtitle">Custo realizado por competência — barras divididas + distribuição</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="material-symbols-rounded hdr-expand">open_in_full</span>
@@ -227,24 +281,11 @@
         <button type="button" class="evo-dim-btn" data-dim="nome_fantasia">Fornecedor</button>
         <button type="button" class="evo-dim-btn" data-dim="none">Sem divisão</button>
       </div>
-      <div id="home-chart-evolucao" style="min-height:190px;">
-        <div style="padding:32px;text-align:center;color:var(--c-outline);">Carregando...</div>
-      </div>
-      <div id="home-chart-evolucao-legend" class="evo-legend"></div>
-    </div>
-    <div class="card">
-      <div class="card-header is-clickable" id="hdr-ini-bar">
-        <div>
-          <h3>Distribuição por Iniciativa</h3>
-          <div class="card-subtitle">Participação no total realizado — clique para detalhes</div>
+      <div class="evo-layout">
+        <div id="home-chart-evolucao" class="evo-chart">
+          <div style="padding:32px;text-align:center;color:var(--c-outline);">Carregando...</div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
-          <span class="material-symbols-rounded" style="color:#10b981;font-size:20px;">donut_small</span>
-        </div>
-      </div>
-      <div id="home-chart-iniciativas" style="min-height:190px;">
-        <div style="padding:32px;text-align:center;color:var(--c-outline);">Carregando...</div>
+        <div id="home-evo-dist" class="evo-dist is-clickable" title="Clique para ver detalhes"></div>
       </div>
     </div>
   </div>
@@ -436,6 +477,16 @@
         renderEvolucao(_filteredData);
       });
     }
+
+    // Painel de distribuição abre a sidebar de detalhe da dimensão atual
+    var evoDist = document.getElementById('home-evo-dist');
+    if (evoDist) {
+      evoDist.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (_evoDim === 'nome_fantasia') _openTab('fornecedor', 'Distribuição por Fornecedor');
+        else _openTab('iniciativa', 'Distribuição por Iniciativa');
+      });
+    }
   }
 
   // ── KPIs ──────────────────────────────────────────────────────────────
@@ -500,8 +551,8 @@
   // ── CHART: EVOLUÇÃO MENSAL ────────────────────────────────────────────
 
   function renderEvolucao(data) {
-    var el    = document.getElementById('home-chart-evolucao');
-    var legEl = document.getElementById('home-chart-evolucao-legend');
+    var el     = document.getElementById('home-chart-evolucao');
+    var distEl = document.getElementById('home-evo-dist');
     if (!el) return;
     var dim = _evoDim;  // 'iniciativa' | 'nome_fantasia' | 'none'
 
@@ -522,7 +573,7 @@
     var sorted = Object.keys(meses).sort().map(function(k){return meses[k];});
     if (sorted.length===0) {
       el.innerHTML='<div style="padding:32px;text-align:center;color:var(--c-outline);">Nenhum dado disponível</div>';
-      if (legEl) legEl.innerHTML='';
+      if (distEl) distEl.innerHTML='';
       return;
     }
 
@@ -547,12 +598,19 @@
     var colorOf={};
     orderCats.forEach(function(c,i){ colorOf[c]= c==='Outros' ? '#94a3b8' : _CL[i%_CL.length]; });
 
-    // 3. Geometria
-    var W=520,H=210,PL=56,PR=14,PT=14,PB=42;
+    // Formata valor compacto (R$) para rótulos do gráfico
+    function _kc(t){
+      if (t>=1e6) return (t/1e6).toFixed(2).replace('.',',')+'M';
+      if (t>=1000) return Math.round(t/1000)+'K';
+      return String(Math.round(t));
+    }
+
+    // 3. Geometria (chart full width)
+    var W=720,H=250,PL=58,PR=16,PT=30,PB=46;
     var gW=W-PL-PR, gH=H-PT-PB;
     var maxV = Math.max.apply(null,sorted.map(function(m){return m.total;}))||1;
     var n=sorted.length, slot=gW/n;
-    var barW=Math.min(slot*0.62, 46);
+    var barW=Math.min(slot*0.6, 54);
     function cx(i){return PL+slot*(i+0.5);}
     function py(v){return PT+gH-(v/maxV*gH);}
 
@@ -583,30 +641,76 @@
     var pts=sorted.map(function(m,i){return{x:cx(i),y:py(m.total),m:m};});
     var pd=pts.map(function(p,i){return(i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1);}).join(' ');
     var dots=pts.map(function(p){
-      return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.2" fill="var(--c-on-surface)" stroke="var(--c-surface)" stroke-width="1.5">'+
+      return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.4" fill="var(--c-on-surface)" stroke="var(--c-surface)" stroke-width="1.5">'+
         '<title>'+(_MN[parseInt(p.m.mes)-1]||p.m.mes)+'/'+p.m.ano+': '+BRL(p.m.total)+' ('+p.m.qtd+' NFs)</title></circle>';
     }).join('');
 
+    // RÓTULOS DE VALOR — total de cada mês, acima do ponto (bem evidentes)
+    var valLbls=pts.map(function(p){
+      var ly=Math.max(PT-2, p.y-9);
+      return '<text x="'+p.x.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="middle" font-size="10" font-weight="700" fill="var(--c-on-surface)" font-family="DM Mono,monospace">'+_kc(p.m.total)+'</text>';
+    }).join('');
+
     // rótulos do eixo X
-    var lblStep = n>12?2:1;
+    var lblStep = n>14?2:1;
     var lbls=pts.map(function(p,i){
       if (i%lblStep!==0 && i!==n-1) return '';
       var mn=_MN[parseInt(p.m.mes)-1]||p.m.mes;
-      return '<text x="'+p.x.toFixed(1)+'" y="'+(H-24)+'" text-anchor="middle" font-size="9" fill="var(--c-outline)" font-family="DM Sans,system-ui">'+mn+'</text>'+
-             '<text x="'+p.x.toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" font-size="8"  fill="var(--c-outline)" font-family="DM Sans,system-ui">'+p.m.ano+'</text>';
+      return '<text x="'+p.x.toFixed(1)+'" y="'+(H-26)+'" text-anchor="middle" font-size="10" font-weight="600" fill="var(--c-on-surface-variant)" font-family="DM Sans,system-ui">'+mn+'</text>'+
+             '<text x="'+p.x.toFixed(1)+'" y="'+(H-13)+'" text-anchor="middle" font-size="8"  fill="var(--c-outline)" font-family="DM Sans,system-ui">'+p.m.ano+'</text>';
     }).join('');
 
-    el.innerHTML='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+
+    el.innerHTML='<svg width="100%" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">'+
       grid+bars+
       '<path d="'+pd+'" stroke="var(--c-on-surface)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>'+
-      dots+lbls+'</svg>';
+      dots+valLbls+lbls+'</svg>';
 
-    // legenda (oculta quando "Sem divisão")
-    if (legEl) {
-      legEl.innerHTML = dim==='none' ? '' : orderCats.map(function(c){
-        var nm=c.length>26?c.substring(0,26)+'…':c;
-        return '<span class="evo-legend-item"><span class="evo-legend-dot" style="background:'+colorOf[c]+'"></span><span title="'+E(c)+'">'+E(nm)+'</span></span>';
+    // 4. Painel de distribuição (serve de legenda + distribuição por categoria)
+    if (distEl) {
+      // Quando "Sem divisão", o painel mostra a distribuição por Iniciativa.
+      var pdim = dim==='none' ? 'iniciativa' : dim;
+      var pOrder, pTotals, pColor;
+      if (pdim===dim) {
+        // reaproveita as categorias/cores das barras (legenda fiel)
+        pOrder = orderCats;
+        pColor = colorOf;
+        pTotals = {};
+        pOrder.forEach(function(c){ pTotals[c]=0; });
+        Object.keys(grand).forEach(function(c){
+          var key = topSet[c] ? c : 'Outros';
+          pTotals[key]=R((pTotals[key]||0)+grand[c]);
+        });
+      } else {
+        // recomputa por iniciativa (modo "Sem divisão")
+        var g2={};
+        data.forEach(function(row){
+          if ((row.status_nfe||'').trim()!=='Autorizada') return;
+          if (!String(row.competencia||'').match(/(\d{2})\/(\d{4})/)) return;
+          var c=String(row[pdim]||'').trim() || 'N/A';
+          g2[c]=R((g2[c]||0)+R(row.total_nfe||0));
+        });
+        var c2=Object.keys(g2).sort(function(a,b){return g2[b]-g2[a];});
+        var t2=c2.slice(0,7), set2={}; t2.forEach(function(c){set2[c]=1;});
+        pOrder=t2.slice(); if (c2.length>7) pOrder.push('Outros');
+        pTotals={}; pOrder.forEach(function(c){pTotals[c]=0;});
+        Object.keys(g2).forEach(function(c){ var k=set2[c]?c:'Outros'; pTotals[k]=R((pTotals[k]||0)+g2[c]); });
+        pColor={}; pOrder.forEach(function(c,i){ pColor[c]= c==='Outros' ? '#94a3b8' : _CL[i%_CL.length]; });
+      }
+      var pTot = pOrder.reduce(function(s,c){return R(s+(pTotals[c]||0));},0) || 1;
+      var pTitle = pdim==='nome_fantasia' ? 'Distribuição por Fornecedor' : 'Distribuição por Iniciativa';
+      var rowsHtml = pOrder.map(function(c){
+        var v=pTotals[c]||0, pct=(v/pTot*100);
+        var nm=c.length>24?c.substring(0,24)+'…':c;
+        return '<div class="evo-dist-row">'+
+          '<div class="evo-dist-top">'+
+            '<span class="evo-dist-name"><span class="evo-legend-dot" style="background:'+pColor[c]+'"></span><span title="'+E(c)+'">'+E(nm)+'</span></span>'+
+            '<span class="evo-dist-pct">'+pct.toFixed(1)+'%</span>'+
+          '</div>'+
+          '<div class="evo-dist-bar"><div style="width:'+pct.toFixed(1)+'%;background:'+pColor[c]+'"></div></div>'+
+          '<div class="evo-dist-val">'+BRL0(v)+'</div>'+
+        '</div>';
       }).join('');
+      distEl.innerHTML='<div class="evo-dist-title">'+pTitle+'</div>'+rowsHtml;
     }
   }
 
@@ -902,7 +1006,6 @@
     });
 
     renderEvolucao(data);
-    renderInicBar(data);
     renderVencimentos(data);
     renderVencidas(data);
     renderIniciativas(data);
