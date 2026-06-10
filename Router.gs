@@ -627,10 +627,11 @@ function routerGetForecastData(mesReferencia) {
       const row = raw[r];
       if (row.every(v => v === '' || v === null || v === undefined)) continue;
 
-      // Ignora linhas de subtracao/ajuste (INICIATIVA_DIRECAO = "Subtracao" ou similar)
+      // Determina o sinal da linha: Subtrai = -1, Soma (ou omitido) = +1
+      let sign = 1;
       if (C_DIR) {
         const dir = _nk(String(row[C_DIR.i] || ''));
-        if (dir.includes('subtr') || dir === 'sub') continue;
+        if (dir.includes('subtr') || dir === 'sub') sign = -1;
       }
 
       const inibank = getIni(row) || '—';
@@ -650,11 +651,11 @@ function routerGetForecastData(mesReferencia) {
         months.forEach(m => { forecastMap[inibank].monthly[m] = 0; });
         inibankOrder.push(inibank);
       }
-      // Soma todos os sub-itens (linhas "Soma") do mesmo inibank
+      // Aplica sinal: linhas "Soma" somam (+1), linhas "Subtrai" subtraem (-1)
       months.forEach(m => {
-        forecastMap[inibank].monthly[m] = (forecastMap[inibank].monthly[m] || 0) + (monthly[m] || 0);
+        forecastMap[inibank].monthly[m] = (forecastMap[inibank].monthly[m] || 0) + sign * (monthly[m] || 0);
       });
-      forecastMap[inibank].projecao += projecao;
+      forecastMap[inibank].projecao += sign * projecao;
       if (!forecastMap[inibank].desc && desc) forecastMap[inibank].desc = desc;
       // Atualiza status: se qualquer linha indicar Ativa, a iniciativa e Ativa
       if (status === 'Ativa') forecastMap[inibank].status = 'Ativa';
