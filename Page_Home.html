@@ -387,17 +387,25 @@
   padding: 4px 6px; text-align: center; white-space: nowrap;
 }
 .hx-table th.hx-rowhead, .hx-table td.hx-rowhead {
-  text-align: left; position: sticky; left: 0; z-index: 2;
+  text-align: left; position: sticky; left: 0; z-index: 3;
   background: var(--c-surface);
   width: 200px; min-width: 200px; max-width: 200px;
+  overflow: hidden;                 /* recorta nome/código — não vaza p/ janeiro */
+  box-shadow: 1px 0 0 var(--c-outline-variant);  /* separador limpo da 1ª coluna */
 }
-.hx-rowhead-inner { display: flex; align-items: center; gap: 9px; }
+.hx-rowhead-inner { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .hx-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+.hx-iwrap { display: flex; flex-direction: column; min-width: 0; flex: 1; overflow: hidden; }
 .hx-iname {
+  display: block; max-width: 100%;
   font-size: 0.78rem; font-weight: 600; color: var(--c-on-surface);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.hx-icode { font-size: 0.66rem; color: var(--c-outline); font-family: 'DM Mono', monospace; }
+.hx-icode {
+  display: block; max-width: 100%;
+  font-size: 0.66rem; color: var(--c-outline); font-family: 'DM Mono', monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* Células de calor — ocupam toda a largura da coluna do mês */
 .hx-cell {
@@ -1631,8 +1639,8 @@
       html += '<tr class="hx-row">'+
         '<td class="hx-rowhead"><div class="hx-rowhead-inner">'+
           '<span class="hx-dot" style="background:'+colorOfIni[ini]+'"></span>'+
-          '<span style="min-width:0;"><span class="hx-iname" title="'+E(ini)+(descs[ini]?' — '+descs[ini]:'')+'">'+E(descs[ini]||ini)+'</span>'+
-            '<br><span class="hx-icode">'+E(ini)+'</span></span>'+
+          '<span class="hx-iwrap"><span class="hx-iname" title="'+E(ini)+(descs[ini]?' — '+descs[ini]:'')+'">'+E(descs[ini]||ini)+'</span>'+
+            '<span class="hx-icode">'+E(ini)+'</span></span>'+
         '</div></td>';
       sortedMonths.forEach(function(m){
         var v=matrix[ini][m]||0;
