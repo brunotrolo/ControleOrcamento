@@ -903,9 +903,9 @@ function routerGetNotaFiscalCombined() {
       });
     });
 
-    // Lista COMPLETA de prestadores (aba PRESTADOR) — a lista de Profissionais
-    // Alocados deve mostrar todos eles, mesmo sem nota fiscal analítica.
-    // prestadoresAtivos = contagem de status "Ativo".
+    // Lista COMPLETA de prestadores (aba PRESTADOR) — uma entrada por LINHA da
+    // aba (matrículas/nomes podem repetir, ex.: placeholders P0XXXXXX), sem
+    // colapsar. Papel, Fornecedor, Status e Iniciativa vêm desta aba.
     let prestadoresAtivos = 0;
     const prestadores = [];
 
@@ -914,6 +914,12 @@ function routerGetNotaFiscalCombined() {
       if (k === 'ativo' || k === 'ativa') return 'Ativo';
       if (k.indexOf('inativ') === 0)      return 'Inativo';
       return k ? (k.charAt(0).toUpperCase() + k.slice(1)) : '';
+    };
+    const _numBR = function (v) {
+      if (typeof v === 'number') return v;
+      if (!v || v instanceof Date) return 0;
+      return parseFloat(String(v).replace(/R\$\s*/g, '').replace(/\s/g, '')
+        .replace(/\./g, '').replace(',', '.')) || 0;
     };
 
     try {
@@ -933,6 +939,10 @@ function routerGetNotaFiscalCombined() {
       // nome: evita pegar "nome_fantasia"/"razao" de empresa; prioriza nome do prestador/profissional
       const K_NOME   = _find([/nome_prestador/, /nome_profissional/, /nome_completo/, /^nome$/, /nome/], /fantasia|razao|empresa/);
       const K_PAPEL  = _find([/papel/, /funcao/, /cargo/, /perfil/, /especialidad/]);
+      const K_FORN   = _find([/fantasia/, /fornecedor/, /empresa/, /razao/]);
+      const K_INI    = _find([/iniciativa/, /inibank/]);
+      const K_HH     = _find([/^hh$/, /hora_homem/, /^h_h$/]);
+      const K_ESTM   = _find([/estimado_mensal/, /est_mensal/]);
 
       prRows.forEach(r => {
         const status = _statusLabel(K_STATUS ? r[K_STATUS] : '');
@@ -940,10 +950,17 @@ function routerGetNotaFiscalCombined() {
         const mat   = String((K_MAT  ? r[K_MAT]  : '') || '').trim();
         const nome  = String((K_NOME ? r[K_NOME] : '') || '').trim();
         const papel = String((K_PAPEL? r[K_PAPEL]: '') || '').trim();
+        const forn  = String((K_FORN ? r[K_FORN] : '') || '').trim();
+        const ini   = String((K_INI  ? r[K_INI]  : '') || '').trim();
         if (!mat && !nome) return;
-        prestadores.push({ mat: mat, nome: nome, status: status, papel: papel });
+        prestadores.push({
+          mat: mat, nome: nome, status: status, papel: papel,
+          fornecedor: forn, iniciativa: ini,
+          hh: _numBR(K_HH ? r[K_HH] : 0),
+          estMensal: _numBR(K_ESTM ? r[K_ESTM] : 0)
+        });
       });
-      Logger.log('[NotaFiscalCombined] PRESTADOR: ' + prestadores.length + ' prestadores (mat=' + K_MAT + ' nome=' + K_NOME + ' status=' + K_STATUS + ' papel=' + K_PAPEL + ')');
+      Logger.log('[NotaFiscalCombined] PRESTADOR: ' + prestadores.length + ' linhas (mat=' + K_MAT + ' nome=' + K_NOME + ' status=' + K_STATUS + ' papel=' + K_PAPEL + ' forn=' + K_FORN + ' ini=' + K_INI + ')');
     } catch (e) {
       Logger.log('[NotaFiscalCombined] PRESTADOR indisponivel: ' + e.message);
     }

@@ -1347,30 +1347,42 @@
 
   function _normNome(v){ return String(v||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
 
-  // Achata as linhas de profissionais (aba NOTA_FISCAL_ANALITICO) de cada NF
-  // autorizada em entradas individuais. APENAS aqui a INICIATIVA e o FORNECEDOR
-  // vêm da analítica — a lista-base de prestadores vem da aba PRESTADOR.
-  function _profEntries(data) {
-    var out = [];
+  // Matrícula só serve de chave de junção quando é "real" (não placeholder
+  // como P0XXXXXX nem zerada); caso contrário, junta-se por nome.
+  function _realMat(m){
+    m=String(m||'').trim();
+    if(!m) return '';
+    if(/x/i.test(m)) return '';
+    if(/^p?0+$/i.test(m)) return '';
+    return m;
+  }
+  function _joinKey(mat,nome){
+    var rm=_realMat(mat);
+    return rm ? ('M:'+rm.toLowerCase()) : ('N:'+_normNome(nome));
+  }
+
+  // Realizado por prestador, a partir da aba NOTA_FISCAL_ANALITICO.
+  // Retorna { byKey: {joinKey -> {total,horas,nfs,inis:{}}}, inisAll: {} }.
+  // A INICIATIVA é a da própria linha analítica (não da NF-pai).
+  function _realizadoAnalitico(data) {
+    var byKey={}, inisAll={};
     data.forEach(function(row){
       if((row.status_nfe||'').trim()!=='Autorizada') return;
       if(!row.profissionais||!Array.isArray(row.profissionais)) return;
-      var forn = row.nome_fantasia||'—';
       row.profissionais.forEach(function(p){
         if(!p.nome_profissional||p.nome_profissional==='-') return;
         var ini = _anaIni(p) || row.iniciativa || '—';
-        out.push({
-          mat:    p.matricula||'',
-          nome:   p.nome_profissional,
-          papel:  (p.papel_prestador||'').trim() || '—',
-          ini:    ini,
-          forn:   forn,
-          total:  R(p.subtotal_nfe||0),
-          horas:  parseFloat(p.total_horas)||0
-        });
+        if(ini!=='—') inisAll[ini]=1;
+        var k=_joinKey(p.matricula, p.nome_profissional);
+        if(!byKey[k]) byKey[k]={total:0,horas:0,nfs:0,inis:{}};
+        var d=byKey[k];
+        d.total=R(d.total+R(p.subtotal_nfe||0));
+        d.horas+=parseFloat(p.total_horas)||0;
+        d.nfs++;
+        if(ini!=='—') d.inis[ini]=1;
       });
     });
-    return out;
+    return { byKey: byKey, inisAll: inisAll };
   }
 
   function _fillSelect(sel, values, current) {
@@ -1386,117 +1398,86 @@
 
   function renderProfDetail(data) {
     var el = document.getElementById('home-prof-detail'); if(!el) return;
-    var entries = _profEntries(data);
 
-    // Índices de prestadores (aba PRESTADOR) — chave canônica por matrícula/nome.
-    var prByMat={}, prByNome={}, prByKey={};
-    _prestadores.forEach(function(pr){
-      var key = pr.mat ? ('M:'+String(pr.mat).trim()) : ('N:'+_normNome(pr.nome));
-      pr._key=key; prByKey[key]=pr;
-      if(pr.mat) prByMat[String(pr.mat).trim()]=pr;
-      var nk=_normNome(pr.nome); if(nk) prByNome[nk]=pr;
-    });
-    function _resolveKey(mat,nome){
-      var m=String(mat||'').trim();
-      if(m && prByMat[m]) return prByMat[m]._key;
-      var nk=_normNome(nome);
-      if(prByNome[nk]) return prByNome[nk]._key;
-      return m?('M:'+m):('N:'+nk);
-    }
+    // Realizado vindo da aba analítica (junção por matrícula/nome).
+    var real = _realizadoAnalitico(data);
 
     // Opções dos dropdowns:
-    //  - Papel: união dos papéis da aba PRESTADOR + papéis da analítica
-    //  - Iniciativa e Fornecedor: SOMENTE da aba NOTA_FISCAL_ANALITICO
-    var papeisOpt={}, inisOpt={}, fornsOpt={};
-    _prestadores.forEach(function(pr){ if(pr.papel) papeisOpt[pr.papel]=1; });
-    entries.forEach(function(e){ if(e.papel!=='—')papeisOpt[e.papel]=1; if(e.ini!=='—')inisOpt[e.ini]=1; if(e.forn!=='—')fornsOpt[e.forn]=1; });
+    //  - Papel, Fornecedor, Status: da aba PRESTADOR
+    //  - Iniciativa: da aba NOTA_FISCAL_ANALITICO
+    var papeisOpt={}, fornsOpt={};
+    _prestadores.forEach(function(pr){
+      if(pr.papel) papeisOpt[pr.papel]=1;
+      if(pr.fornecedor) fornsOpt[pr.fornecedor]=1;
+    });
     _fillSelect(document.getElementById('prof-f-papel'),      Object.keys(papeisOpt), _profFilters.papel);
-    _fillSelect(document.getElementById('prof-f-iniciativa'), Object.keys(inisOpt),   _profFilters.iniciativa);
     _fillSelect(document.getElementById('prof-f-fornecedor'), Object.keys(fornsOpt),  _profFilters.fornecedor);
+    _fillSelect(document.getElementById('prof-f-iniciativa'), Object.keys(real.inisAll), _profFilters.iniciativa);
 
-    var iniA  = !!_profFilters.iniciativa;
-    var fornA = !!_profFilters.fornecedor;
+    var iniSel = _profFilters.iniciativa;
+    var nq = (_profFilters.nome||'').trim().toLowerCase();
 
-    var profs={};
-    function _ensure(key, seed){
-      if(!profs[key]){
-        profs[key]={mat:seed.mat||'',nome:seed.nome||'',status:seed.status||'—',papeis:{},inis:{},forns:{},total:0,horas:0,nfs:0};
-        if(seed.papel) profs[key].papeis[seed.papel]=1;
-      }
-      return profs[key];
-    }
+    // Monta uma linha por prestador da aba PRESTADOR (sem colapsar).
+    var rows = [];
+    _prestadores.forEach(function(pr){
+      // Filtros de nível PRESTADOR
+      if(_profFilters.papel      && pr.papel      !== _profFilters.papel)      return;
+      if(_profFilters.fornecedor && pr.fornecedor !== _profFilters.fornecedor) return;
+      if(_profFilters.status     && pr.status     !== _profFilters.status)     return;
+      if(nq && (String(pr.nome).toLowerCase().indexOf(nq)===-1 && String(pr.mat).toLowerCase().indexOf(nq)===-1)) return;
 
-    // Universo-base: TODOS os prestadores da aba PRESTADOR.
-    // Quando há filtro analítico (iniciativa/fornecedor), a lista é restringida
-    // aos prestadores com lançamentos correspondentes (preenchidos abaixo).
-    if(!iniA && !fornA){
-      _prestadores.forEach(function(pr){
-        _ensure(pr._key, {mat:pr.mat,nome:pr.nome,status:pr.status,papel:pr.papel});
+      var r = real.byKey[_joinKey(pr.mat, pr.nome)] || null;
+
+      // Filtro de INICIATIVA (aba analítica): mantém só quem tem realizado na
+      // iniciativa selecionada.
+      if(iniSel && !(r && r.inis[iniSel])) return;
+
+      rows.push({
+        mat: pr.mat, nome: pr.nome, papel: pr.papel||'—', status: pr.status||'—',
+        fornecedor: pr.fornecedor||'—', iniciativa: pr.iniciativa||'—',
+        hh: pr.hh||0, estMensal: pr.estMensal||0,
+        total: r?r.total:0, horas: r?r.horas:0, nfs: r?r.nfs:0
       });
-    }
-
-    // Agrega lançamentos da analítica (iniciativa/fornecedor filtram aqui).
-    entries.forEach(function(e){
-      if(iniA  && e.ini  !== _profFilters.iniciativa) return;
-      if(fornA && e.forn !== _profFilters.fornecedor) return;
-      var key=_resolveKey(e.mat,e.nome);
-      var pr=prByKey[key];
-      var rec=_ensure(key,{mat:(pr&&pr.mat)||e.mat,nome:(pr&&pr.nome)||e.nome,status:(pr&&pr.status)||'—',papel:(pr&&pr.papel)||''});
-      rec.total=R(rec.total+e.total); rec.horas+=e.horas; rec.nfs++;
-      if(e.papel!=='—') rec.papeis[e.papel]=1;
-      if(e.ini!=='—')   rec.inis[e.ini]=1;
-      if(e.forn!=='—')  rec.forns[e.forn]=1;
     });
 
-    // Filtros de nível de prestador: Status, Papel e busca por nome/matrícula.
-    var nq = (_profFilters.nome||'').trim().toLowerCase();
-    var sorted=Object.keys(profs).filter(function(k){
-      var p=profs[k];
-      if(_profFilters.status && p.status!==_profFilters.status) return false;
-      if(_profFilters.papel  && !p.papeis[_profFilters.papel])  return false;
-      if(nq && (p.nome.toLowerCase().indexOf(nq)===-1 && String(p.mat).toLowerCase().indexOf(nq)===-1)) return false;
-      return true;
-    }).sort(function(a,b){return profs[b].total-profs[a].total;});
+    rows.sort(function(a,b){return b.total-a.total;});
     var countEl=document.getElementById('prof-count');
-    if(countEl) countEl.textContent = sorted.length+' profissiona'+(sorted.length===1?'l':'is');
+    if(countEl) countEl.textContent = rows.length+' prestador'+(rows.length===1?'':'es');
 
-    if(sorted.length===0){
-      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">group_off</span><p>Nenhum profissional para os filtros selecionados</p></div>';
+    if(rows.length===0){
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">group_off</span><p>Nenhum prestador para os filtros selecionados</p></div>';
       return;
     }
 
-    var tot=sorted.reduce(function(s,k){return R(s+profs[k].total);},0)||1;
-    var maxV=profs[sorted[0]].total||1;
+    var tot=rows.reduce(function(s,r){return R(s+r.total);},0)||1;
+    var maxV=rows[0].total||1;
 
     var h='<table class="home-table"><thead><tr>'+
-      '<th>#</th><th>Matrícula</th><th>Profissional</th><th>Papel</th><th>Status</th>'+
-      '<th style="text-align:right;">Inic.</th><th style="text-align:right;">Forn.</th>'+
-      '<th style="text-align:right;">NFs</th><th style="text-align:right;">Horas</th>'+
-      '<th style="text-align:right;">R$/h</th><th style="text-align:right;">Total</th>'+
+      '<th>#</th><th>Matrícula</th><th>Profissional</th><th>Papel</th>'+
+      '<th>Fornecedor</th><th>Status</th><th>Iniciativa</th>'+
+      '<th style="text-align:right;">H/H</th><th style="text-align:right;">Estim. Mensal</th>'+
+      '<th style="text-align:right;">NFs</th><th style="text-align:right;">Realizado</th>'+
       '<th style="min-width:90px;">Part.</th>'+
       '</tr></thead><tbody>';
-    sorted.forEach(function(key,i){
-      var p=profs[key], c=_CL[i%_CL.length];
-      var papeisArr=Object.keys(p.papeis), nIni=Object.keys(p.inis).length, nForn=Object.keys(p.forns).length;
-      var papelLbl=papeisArr.length===0?'—':papeisArr.length===1?papeisArr[0]:papeisArr.length+' papéis';
-      var rhh=p.horas>0?p.total/p.horas:0;
+    rows.forEach(function(p,i){
+      var c=_CL[i%_CL.length];
       var pct=p.total/tot*100, barPct=Math.min(100,p.total/maxV*100);
       var stPill = p.status==='Ativo'
         ? '<span class="rank-pill" style="background:rgba(16,185,129,0.14);color:#10b981;">Ativo</span>'
         : p.status==='Inativo'
           ? '<span class="rank-pill" style="background:var(--c-error-cont);color:var(--c-error);">Inativo</span>'
-          : '<span class="rank-pill" style="background:var(--c-surface-cont);color:var(--c-outline);">—</span>';
+          : '<span class="rank-pill" style="background:var(--c-surface-cont);color:var(--c-outline);">'+E(p.status)+'</span>';
       h+='<tr>'+
         '<td><span class="home-rank-badge" style="background:'+c+';">'+(i+1)+'</span></td>'+
         '<td class="col-mono" style="font-size:0.72rem;color:var(--c-outline);">'+E(p.mat)+'</td>'+
         '<td style="font-weight:600;font-size:0.82rem;white-space:nowrap;">'+E(p.nome)+'</td>'+
-        '<td style="color:var(--c-outline);font-size:0.74rem;white-space:nowrap;" title="'+E(papeisArr.join(', '))+'">'+E(papelLbl)+'</td>'+
+        '<td style="color:var(--c-outline);font-size:0.74rem;white-space:nowrap;">'+E(p.papel)+'</td>'+
+        '<td style="font-size:0.76rem;white-space:nowrap;">'+E(p.fornecedor)+'</td>'+
         '<td>'+stPill+'</td>'+
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;" title="'+E(Object.keys(p.inis).join(', '))+'">'+nIni+'</td>'+
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;" title="'+E(Object.keys(p.forns).join(', '))+'">'+nForn+'</td>'+
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.nfs+'</td>'+
-        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.horas.toFixed(1)+'h</td>'+
-        '<td class="col-mono" style="text-align:right;font-size:0.74rem;color:var(--c-outline);">'+BRL0(rhh)+'</td>'+
+        '<td class="col-mono" style="font-size:0.73rem;color:var(--c-outline);white-space:nowrap;">'+E(p.iniciativa)+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.74rem;color:var(--c-outline);">'+(p.hh?BRL(p.hh):'—')+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.74rem;color:var(--c-outline);">'+(p.estMensal?BRL0(p.estMensal):'—')+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+(p.nfs||0)+'</td>'+
         '<td class="col-valor" style="text-align:right;font-size:0.78rem;font-weight:700;">'+BRL0(p.total)+'</td>'+
         '<td><div style="display:flex;align-items:center;gap:7px;">'+
             '<div class="rank-bar-track"><div class="rank-bar-fill" style="width:'+barPct.toFixed(0)+'%;background:'+c+';"></div></div>'+
@@ -1505,15 +1486,14 @@
         '</tr>';
     });
     // Total geral
-    var tHoras=0,tNfs=0;
-    sorted.forEach(function(k){ tHoras+=profs[k].horas; tNfs+=profs[k].nfs; });
+    var tNfs=0,tEst=0;
+    rows.forEach(function(r){ tNfs+=r.nfs; tEst=R(tEst+r.estMensal); });
     h+='</tbody><tfoot><tr style="font-weight:700;background:var(--c-surface-cont-low);">'+
       '<td></td><td></td>'+
-      '<td style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--c-on-surface-variant);">Total ('+sorted.length+')</td>'+
-      '<td></td><td></td><td></td><td></td>'+
+      '<td style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--c-on-surface-variant);">Total ('+rows.length+')</td>'+
+      '<td></td><td></td><td></td><td></td><td></td>'+
+      '<td class="col-mono" style="text-align:right;font-size:0.74rem;">'+BRL0(tEst)+'</td>'+
       '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+tNfs+'</td>'+
-      '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+tHoras.toFixed(1)+'h</td>'+
-      '<td></td>'+
       '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL0(tot)+'</td>'+
       '<td></td></tr></tfoot></table>';
     el.innerHTML=h;
