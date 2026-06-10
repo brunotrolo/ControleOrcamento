@@ -255,7 +255,7 @@ window.CardFilter = (function() {
 
   // Define as seleções padrão:
   //   Status      = "Autorizada"
-  //   Competência = mês mais recente (primeiro item, já ordenado decrescente)
+  //   Competência = todos os meses do ano vigente (ano do último mês da NOTA_FISCAL)
   //   Iniciativa  = apenas as Ativas (cruzadas com activeIniciativas do FORECAST)
   function _applyDefaults() {
     var status = _values['status_nfe'] || [];
@@ -263,9 +263,19 @@ window.CardFilter = (function() {
       _filters['status_nfe'] = ['Autorizada'];
     }
 
+    // comps chegam ordenados decrescente ("MM/yyyy"); o primeiro é o mês mais recente.
+    // Ano vigente = ano desse mês; marca todas as competências desse ano.
     var comps = _values['competencia'] || [];
     if (comps.length > 0) {
-      _filters['competencia'] = [_fmtComp(comps[0])];
+      var m = String(comps[0]).match(/(\d{2})\/(\d{4})/);
+      var anoVigente = m ? m[2] : null;
+      if (anoVigente) {
+        _filters['competencia'] = comps
+          .filter(function (c) { return String(c).indexOf('/' + anoVigente) !== -1; })
+          .map(_fmtComp);
+      } else {
+        _filters['competencia'] = [_fmtComp(comps[0])];
+      }
     }
 
     if (_activeIniciativas.length > 0) {
