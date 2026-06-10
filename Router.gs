@@ -461,32 +461,59 @@ function routerGetFilterValues(sheetName, fieldKeys) {
     const iniciativaOptions = [];   // [{ code, label, active }]
     if (fieldKeys.indexOf('iniciativa') !== -1) {
       try {
-        // Invalida o cache de cabeçalhos para refletir a nova coluna STATUS
-        // adicionada na aba FORECAST (evita leitura desalinhada por cache antigo).
-        invalidateHeaderCache(ALLOWED_SHEETS.FORECAST);
-        const forecastRows = fetchAll(ALLOWED_SHEETS.FORECAST);
-        const activeSet = new Set();
-        const seenIni   = new Set();
-        forecastRows.forEach(fr => {
-          const ini = String(fr.iniciativa || '').trim();
-          if (!ini) return;
-          const st = String(fr.status || '').trim().toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const isActive = !st.includes('encerr') && !st.includes('cancel') && !st.includes('inativ');
-          if (isActive) activeSet.add(ini);
-          if (!iniciativaLabels[ini]) {
-            const desc = String(fr.iniciativa_descricao || '').trim();
-            iniciativaLabels[ini] = desc ? (ini + ' - ' + desc) : ini;
+        // Le a aba FORECAST diretamente, detectando colunas por padroes
+        // semanticos — resiliente a mudancas de ordem/nome de colunas.
+        function _nkF(s) {
+          if (s instanceof Date || s == null) return '';
+          return String(s).trim()
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '');
+        }
+        const { sheet: fSheet } = _openSheet(ALLOWED_SHEETS.FORECAST);
+        const fLastRow = fSheet.getLastRow();
+        const fLastCol = fSheet.getLastColumn();
+        if (fLastRow >= 2) {
+          const fRaw     = fSheet.getRange(1, 1, fLastRow, fLastCol).getValues();
+          const fHeaders = fRaw[0].map((h, i) => ({ key: _nkF(h), i }));
+          function _fCol() {
+            const pats = Array.prototype.slice.call(arguments);
+            return fHeaders.find(c => c.key && pats.some(p =>
+              typeof p === 'string' ? c.key === p : p.test(c.key)));
           }
-          if (!seenIni.has(ini)) {
-            seenIni.add(ini);
-            iniciativaOptions.push({ code: ini, label: iniciativaLabels[ini], active: false });
+          const FC_INI = _fCol(/inibank/, /ini_bank/, /^codigo$/, /^cod$/, /^cod_ini/, /^ini$/, /^iniciativa$/);
+          const fHdrExcIni = FC_INI ? fHeaders.filter(c => c.i !== FC_INI.i) : fHeaders;
+          const FC_DESC = (function() {
+            const pats = ['iniciativa_descricao', 'descricao_iniciativa', 'nome_iniciativa',
+              /iniciativa_desc/, /descricao_iniciativa/, /^descricao$/, /descr_ini/, /projeto/, /nome_projeto/, /iniciativa/];
+            return fHdrExcIni.find(c => c.key && pats.some(p =>
+              typeof p === 'string' ? c.key === p : p.test(c.key)));
+          })();
+          const FC_STATUS = _fCol('status', /^status/);
+
+          const activeSet = new Set();
+          const seenIni   = new Set();
+          for (let r = 1; r < fRaw.length; r++) {
+            const row = fRaw[r];
+            const ini = FC_INI ? String(row[FC_INI.i] || '').trim() : '';
+            if (!ini) continue;
+            const st = FC_STATUS ? _nkF(row[FC_STATUS.i]) : '';
+            const isActive = !st.includes('encerr') && !st.includes('cancel') && !st.includes('inativ');
+            if (isActive) activeSet.add(ini);
+            if (!iniciativaLabels[ini]) {
+              const desc = FC_DESC ? String(row[FC_DESC.i] || '').trim() : '';
+              iniciativaLabels[ini] = desc ? (ini + ' - ' + desc) : ini;
+            }
+            if (!seenIni.has(ini)) {
+              seenIni.add(ini);
+              iniciativaOptions.push({ code: ini, label: iniciativaLabels[ini], active: false });
+            }
           }
-        });
-        // Uma iniciativa é ativa se QUALQUER linha dela for ativa
-        iniciativaOptions.forEach(o => { o.active = activeSet.has(o.code); });
-        iniciativaOptions.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
-        activeSet.forEach(v => activeIniciativas.push(v));
+          // Uma iniciativa e ativa se QUALQUER linha dela for ativa
+          iniciativaOptions.forEach(o => { o.active = activeSet.has(o.code); });
+          iniciativaOptions.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+          activeSet.forEach(v => activeIniciativas.push(v));
+        }
+        Logger.log('[FilterValues] FORECAST: ' + iniciativaOptions.length + ' iniciativas, ' + activeIniciativas.length + ' ativas');
       } catch(e) {
         Logger.log('[FilterValues] Nao foi possivel ler FORECAST: ' + e.message);
       }
