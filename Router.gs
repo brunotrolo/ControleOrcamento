@@ -800,7 +800,9 @@ function routerGetForecastData(mesReferencia) {
         if (i <= refIdx) s += (rMonthly[m] || 0);
         return s;
       }, 0);
-      const saldo = fProj - rAteRef;
+      // FA saldo: usa apenas o forecast do ano de referência (exclui anos futuros como 2027)
+      const fProjRefYear = months.reduce((s, m) => _yearOfLabel(m) === refYear ? s + (fMonthly[m] || 0) : s, 0);
+      const saldo = fProjRefYear - rAteRef;
 
       const futureMonths = months.filter((m, i) => {
         return i > refIdx && _yearOfLabel(m) === refYear;
