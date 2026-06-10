@@ -239,6 +239,7 @@ window.CardFilter = (function() {
   var _callback = null;
   var _defaultsApplied = false;
   var _activeIniciativas = [];
+  var _iniLabels = {};  // { código → "código - descrição" } vindo do FORECAST
 
   var _MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
@@ -352,9 +353,11 @@ window.CardFilter = (function() {
       vals.forEach(function(val) {
         var id = 'cb_' + _esc(field.key) + '_' + _esc(val);
         var chk = sel.indexOf(val) !== -1;
+        // Para Iniciativa, exibe "código - descrição" (do FORECAST) mas mantém o valor = código
+        var labelTxt = (field.key === 'iniciativa' && _iniLabels[val]) ? _iniLabels[val] : val;
         html += '<div class="picklist-option">' +
           '<input type="checkbox" id="' + id + '" data-field="' + _esc(field.key) + '" value="' + _esc(val) + '"' + (chk ? ' checked' : '') + '>' +
-          '<label for="' + id + '">' + _esc(val) + '</label>' +
+          '<label for="' + id + '" title="' + _esc(labelTxt) + '">' + _esc(labelTxt) + '</label>' +
           '</div>';
       });
     }
@@ -433,6 +436,7 @@ window.CardFilter = (function() {
         if (res.activeIniciativas && res.activeIniciativas.length > 0) {
           _activeIniciativas = res.activeIniciativas;
         }
+        if (res.iniciativaLabels) _iniLabels = res.iniciativaLabels;
 
         // Validar se valores estão vazios
         var hasValues = Object.keys(_values).some(function(k) { return _values[k] && _values[k].length > 0; });
@@ -486,6 +490,7 @@ window.CardFilter = (function() {
     _callback = null;
     _defaultsApplied = false;
     _activeIniciativas = [];
+    _iniLabels = {};
   }
 
   function getFilters() {

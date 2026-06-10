@@ -451,6 +451,7 @@ function routerGetFilterValues(sheetName, fieldKeys) {
     // Lê a aba FORECAST para saber quais iniciativas estao Ativas
     // Usada pelo Card_Filter para pre-selecionar apenas Ativas no picklist de Iniciativa
     const activeIniciativas = [];
+    const iniciativaLabels  = {};
     if (fieldKeys.indexOf('iniciativa') !== -1) {
       try {
         const forecastRows = fetchAll(ALLOWED_SHEETS.FORECAST);
@@ -463,6 +464,12 @@ function routerGetFilterValues(sheetName, fieldKeys) {
           if (!st.includes('encerr') && !st.includes('cancel') && !st.includes('inativ')) {
             activeSet.add(ini);
           }
+          // Primeira descricao nao-vazia por codigo vira o rotulo "codigo - descricao"
+          // codigo = coluna A (INICIATIVA), descricao = coluna B (INICIATIVA_DESCRICAO)
+          if (!iniciativaLabels[ini]) {
+            const desc = String(fr.iniciativa_descricao || '').trim();
+            iniciativaLabels[ini] = desc ? (ini + ' - ' + desc) : ini;
+          }
         });
         activeSet.forEach(v => activeIniciativas.push(v));
       } catch(e) {
@@ -470,7 +477,7 @@ function routerGetFilterValues(sheetName, fieldKeys) {
       }
     }
 
-    return { filterValues, activeIniciativas };
+    return { filterValues, activeIniciativas, iniciativaLabels };
   });
 }
 
