@@ -458,6 +458,57 @@
 }
 .hx-legend-peak { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; color: var(--c-outline); }
 .hx-legend-peak::before { content: ''; width: 12px; height: 12px; border-radius: 4px; background: #fff; box-shadow: 0 0 0 2px #f59e0b; }
+
+/* ===== Saúde Orçamentária (bh-) ===== */
+.bh-wrap { padding: 2px; }
+.bh-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.bh-kpi {
+  position: relative; border-radius: var(--border-radius-lg);
+  padding: 14px 16px; background: var(--c-surface-cont-low);
+  border: 1px solid var(--c-outline-variant); overflow: hidden;
+}
+.bh-kpi::after { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background: var(--bh-accent,#06b6d4); }
+.bh-kpi-label { font-size:0.64rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--c-outline); }
+.bh-kpi-value { font-size:1.15rem; font-weight:800; color:var(--c-on-surface); font-family:'DM Mono',monospace; line-height:1.2; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bh-kpi-sub { font-size:0.7rem; color:var(--c-outline); margin-top:2px; }
+
+.bh-scroll { overflow-x: auto; }
+.bh-table { width:100%; border-collapse: collapse; min-width: 920px; }
+.bh-table th {
+  font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;
+  color:var(--c-outline); padding:8px 10px; border-bottom:1px solid var(--c-outline-variant); white-space:nowrap;
+}
+.bh-table td { padding:10px; border-bottom:1px solid var(--c-outline-variant); font-size:0.8rem; vertical-align:middle; }
+.bh-table tbody tr:last-child td { border-bottom:none; }
+.bh-table tbody tr:hover td { background: var(--c-surface-cont-low); }
+.bh-ini-name { font-weight:600; color:var(--c-on-surface); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px; }
+.bh-ini-code { font-size:0.66rem; color:var(--c-outline); font-family:'DM Mono',monospace; }
+.bh-num { font-family:'DM Mono',monospace; text-align:right; white-space:nowrap; }
+
+/* Barra de projeção: realizado (sólido) + projeção (hachura) + marca do orçado */
+.bh-bar {
+  position: relative; height: 16px; border-radius: 8px;
+  background: var(--c-surface-cont); overflow: hidden; min-width: 150px;
+}
+.bh-bar-real { position:absolute; left:0; top:0; bottom:0; border-radius:8px 0 0 8px; }
+.bh-bar-proj { position:absolute; top:0; bottom:0; opacity:0.4;
+  background-image: repeating-linear-gradient(45deg, currentColor 0, currentColor 2px, transparent 2px, transparent 5px); }
+.bh-bar-budget { position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--c-on-surface); z-index:2; }
+.bh-bar-budget::after { content:''; position:absolute; top:-3px; left:-2px; border-left:3px solid transparent; border-right:3px solid transparent; border-top:4px solid var(--c-on-surface); }
+
+.bh-status { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; font-size:0.66rem; font-weight:700; white-space:nowrap; }
+.bh-st-over { background: var(--c-error-cont); color: var(--c-error); }
+.bh-st-edge { background: rgba(245,158,11,0.16); color:#b45309; }
+.bh-st-ok   { background: rgba(16,185,129,0.16); color:#0f766e; }
+.bh-st-under{ background: rgba(6,182,212,0.16); color:#0e7490; }
+.bh-st-none { background: var(--c-surface-cont); color: var(--c-outline); }
+.bh-desvio-pos { color: var(--c-error); font-weight:700; }
+.bh-desvio-neg { color: #0f766e; font-weight:700; }
 </style>
 
 <div id="view-home-content">
@@ -607,6 +658,23 @@
     </div>
   </div>
 
+  <!-- Row Budget: Saúde Orçamentária (projeção / burn rate / risco de estouro) -->
+  <div id="home-row-budget" class="home-section-mt" style="display:none;">
+    <div class="card">
+      <div class="card-header is-clickable" id="hdr-budget">
+        <div>
+          <h3>Saúde Orçamentária das Iniciativas</h3>
+          <div class="card-subtitle">Projeção de fechamento no ritmo atual (burn rate) — risco de estouro vs orçado — clique para detalhes</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:#06b6d4;font-size:20px;">monitoring</span>
+        </div>
+      </div>
+      <div id="home-budget"></div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -672,6 +740,7 @@
       ['hdr-vencimentos','summary',         'Resumo — Vencimentos'],
       ['hdr-prof',       'prestador',       'Profissionais Alocados'],
       ['hdr-heatmap',    'iniciativa',      'Heatmap — Detalhe por Iniciativa'],
+      ['hdr-budget',     'iniciativa',      'Saúde Orçamentária — Detalhe por Iniciativa'],
     ];
     map.forEach(function(cfg) {
       var el = document.getElementById(cfg[0]);
@@ -1706,6 +1775,153 @@
       '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.2" fill="'+color+'"/></svg>';
   }
 
+  // ── SAÚDE ORÇAMENTÁRIA (projeção / burn rate / risco de estouro) ──────
+  // Visão prospectiva: no ritmo atual, cada iniciativa estoura ou sobra?
+  // Usa o forecast (Orçado) e o realizado por mês, projetando o fechamento
+  // do ano vigente = Realizado + (ritmo mensal × meses restantes).
+  function _yrOf(label){ var m=String(label).match(/\.-(\d{2})$/); return m?parseInt('20'+m[1]):0; }
+
+  function _buildBudgetHealth() {
+    // Agrupa Forecast e Realizado mensais por iniciativa (respeita filtro de iniciativa).
+    var f = (typeof CardFilter!=='undefined' && CardFilter.getFilters) ? (CardFilter.getFilters()||{}) : {};
+    var selIni = f.iniciativa || [];
+    var byIni = {};
+    _forecastRows.forEach(function(r){
+      if(selIni.length && selIni.indexOf(r.inibank)===-1) return;
+      if(!byIni[r.inibank]) byIni[r.inibank]={inibank:r.inibank,desc:r.iniciativa||'',status:r.status||'Ativa',f:{},r:{}};
+      if(r.tipo==='Forecast')  byIni[r.inibank].f=r._monthly||{};
+      if(r.tipo==='Realizado') byIni[r.inibank].r=r._monthly||{};
+    });
+
+    // Ano vigente = maior ano com algum realizado; meses do ano e nº decorridos.
+    var realByMonth={};
+    _forecastMonths.forEach(function(ml){ realByMonth[ml]=0; });
+    Object.keys(byIni).forEach(function(k){
+      _forecastMonths.forEach(function(ml){ realByMonth[ml]=(realByMonth[ml]||0)+(byIni[k].r[ml]||0); });
+    });
+    var refYear=0;
+    _forecastMonths.forEach(function(ml){ if((realByMonth[ml]||0)>0){ var y=_yrOf(ml); if(y>refYear) refYear=y; } });
+    if(!refYear){ // sem realizado: usa o maior ano dos meses
+      _forecastMonths.forEach(function(ml){ var y=_yrOf(ml); if(y>refYear) refYear=y; });
+    }
+    var yearMonths = _forecastMonths.filter(function(ml){ return _yrOf(ml)===refYear; });
+    var elapsed = yearMonths.reduce(function(s,ml){ return s + ((realByMonth[ml]||0)>0 ? 1 : 0); }, 0);
+    var remaining = Math.max(0, yearMonths.length - elapsed);
+
+    var rows = Object.keys(byIni).map(function(k){
+      var d=byIni[k];
+      var orcado = yearMonths.reduce(function(s,ml){ return s+(d.f[ml]||0); }, 0);
+      var realizado = yearMonths.reduce(function(s,ml){ return s+(d.r[ml]||0); }, 0);
+      var burn = elapsed>0 ? realizado/elapsed : 0;
+      var projFim = R(realizado + burn*remaining);
+      var desvio = R(projFim - orcado);
+      var ratio = orcado>0 ? projFim/orcado : 0;
+      var consumido = orcado>0 ? realizado/orcado*100 : 0;
+      var st;
+      if(orcado<=0) st='none';
+      else if(ratio>1.05) st='over';
+      else if(ratio>=0.95) st='edge';
+      else if(ratio>=0.70) st='ok';
+      else st='under';
+      return { inibank:k, desc:d.desc, status:d.status, orcado:orcado, realizado:realizado,
+               burn:burn, projFim:projFim, desvio:desvio, ratio:ratio, consumido:consumido, st:st };
+    });
+
+    // Ordena por risco: maior desvio (estouro) primeiro, depois maior orçado.
+    rows.sort(function(a,b){ return (b.desvio-a.desvio) || (b.orcado-a.orcado); });
+    return { rows:rows, refYear:refYear, elapsed:elapsed, remaining:remaining, nMonths:yearMonths.length };
+  }
+
+  function renderBudgetHealth() {
+    var el=document.getElementById('home-budget'); if(!el) return;
+    if(!_forecastLoaded){ el.innerHTML='<div style="padding:24px;text-align:center;color:var(--c-outline);">Carregando projeção orçamentária...</div>'; return; }
+
+    var bh=_buildBudgetHealth();
+    var rows=bh.rows;
+    if(rows.length===0){ el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">monitoring</span><p>Sem dados de forecast para projeção</p></div>'; return; }
+
+    var STLABEL={over:'Estouro previsto',edge:'No alvo',ok:'Dentro do orçado',under:'Subutilizado',none:'Sem orçado'};
+    var STCLASS={over:'bh-st-over',edge:'bh-st-edge',ok:'bh-st-ok',under:'bh-st-under',none:'bh-st-none'};
+    var STCOLOR={over:'#ef4444',edge:'#f59e0b',ok:'#10b981',under:'#06b6d4',none:'#94a3b8'};
+
+    var totOrc=0,totReal=0,totProj=0,nRisco=0;
+    rows.forEach(function(r){ totOrc=R(totOrc+r.orcado); totReal=R(totReal+r.realizado); totProj=R(totProj+r.projFim); if(r.st==='over') nRisco++; });
+    var totDesvio=R(totProj-totOrc);
+    var consGlobal = totOrc>0 ? totReal/totOrc*100 : 0;
+
+    // ── Resumo ───────────────────────────────────────────────────────────
+    var html='<div class="bh-wrap"><div class="bh-summary">'+
+      '<div class="bh-kpi" style="--bh-accent:#6366f1;"><div class="bh-kpi-label">Orçado '+bh.refYear+'</div>'+
+        '<div class="bh-kpi-value">'+BRL0(totOrc)+'</div><div class="bh-kpi-sub">'+bh.elapsed+' de '+bh.nMonths+' meses decorridos</div></div>'+
+      '<div class="bh-kpi" style="--bh-accent:#10b981;"><div class="bh-kpi-label">Realizado até agora</div>'+
+        '<div class="bh-kpi-value">'+BRL0(totReal)+'</div><div class="bh-kpi-sub">'+consGlobal.toFixed(0)+'% do orçado consumido</div></div>'+
+      '<div class="bh-kpi" style="--bh-accent:'+(totDesvio>0?'#ef4444':'#06b6d4')+';"><div class="bh-kpi-label">Projeção Fim de Ano</div>'+
+        '<div class="bh-kpi-value">'+BRL0(totProj)+'</div><div class="bh-kpi-sub">'+(totDesvio>0?'estouro de ':'folga de ')+BRL0(Math.abs(totDesvio))+'</div></div>'+
+      '<div class="bh-kpi" style="--bh-accent:#ef4444;"><div class="bh-kpi-label">Iniciativas em Risco</div>'+
+        '<div class="bh-kpi-value">'+nRisco+'</div><div class="bh-kpi-sub">com estouro previsto</div></div>'+
+    '</div>';
+
+    // ── Tabela ───────────────────────────────────────────────────────────
+    html+='<div class="bh-scroll"><table class="bh-table"><thead><tr>'+
+      '<th>Iniciativa</th>'+
+      '<th style="text-align:right;">Orçado</th>'+
+      '<th style="text-align:right;">Realizado</th>'+
+      '<th style="text-align:right;">Consumo</th>'+
+      '<th style="text-align:right;">Ritmo/mês</th>'+
+      '<th style="text-align:right;">Proj. Fim de Ano</th>'+
+      '<th style="text-align:right;">Desvio</th>'+
+      '<th style="min-width:170px;">Projeção vs Orçado</th>'+
+      '<th>Status</th>'+
+      '</tr></thead><tbody>';
+
+    rows.forEach(function(r){
+      var col=STCOLOR[r.st];
+      var scale=Math.max(r.orcado, r.projFim)||1;
+      var realPct=Math.min(100, r.realizado/scale*100);
+      var projPct=Math.min(100, r.projFim/scale*100);
+      var budgetPct=Math.min(100, r.orcado/scale*100);
+      // projeção desenhada de realizado→projFim (hachura na cor do status)
+      var projLeft=realPct, projW=Math.max(0, projPct-realPct);
+      var bar='<div class="bh-bar" title="Realizado '+BRL0(r.realizado)+' · Projeção '+BRL0(r.projFim)+' · Orçado '+BRL0(r.orcado)+'">'+
+        '<div class="bh-bar-real" style="width:'+realPct.toFixed(1)+'%;background:'+col+';"></div>'+
+        '<div class="bh-bar-proj" style="left:'+projLeft.toFixed(1)+'%;width:'+projW.toFixed(1)+'%;color:'+col+';"></div>'+
+        (r.orcado>0?'<div class="bh-bar-budget" style="left:'+budgetPct.toFixed(1)+'%;"></div>':'')+
+      '</div>';
+      var desvioCls = r.desvio>0 ? 'bh-desvio-pos' : (r.desvio<0 ? 'bh-desvio-neg' : '');
+      var desvioTxt = (r.desvio>0?'+':'')+BRL0(r.desvio);
+      html+='<tr>'+
+        '<td><div class="bh-ini-name" title="'+E(r.inibank)+(r.desc?' — '+r.desc:'')+'">'+E(r.desc||r.inibank)+'</div><span class="bh-ini-code">'+E(r.inibank)+'</span></td>'+
+        '<td class="bh-num">'+BRL0(r.orcado)+'</td>'+
+        '<td class="bh-num">'+BRL0(r.realizado)+'</td>'+
+        '<td class="bh-num" style="color:'+(r.consumido>100?'var(--c-error)':'var(--c-on-surface)')+';">'+(r.orcado>0?r.consumido.toFixed(0)+'%':'—')+'</td>'+
+        '<td class="bh-num" style="color:var(--c-outline);">'+(r.burn>0?BRL0(r.burn):'—')+'</td>'+
+        '<td class="bh-num" style="font-weight:700;">'+BRL0(r.projFim)+'</td>'+
+        '<td class="bh-num '+desvioCls+'">'+(r.orcado>0?desvioTxt:'—')+'</td>'+
+        '<td>'+bar+'</td>'+
+        '<td><span class="bh-status '+STCLASS[r.st]+'">'+E(STLABEL[r.st])+'</span></td>'+
+        '</tr>';
+    });
+
+    html+='</tbody><tfoot><tr style="font-weight:700;">'+
+      '<td style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--c-on-surface-variant);border-top:2px solid var(--c-outline-variant);">Total ('+rows.length+')</td>'+
+      '<td class="bh-num" style="border-top:2px solid var(--c-outline-variant);">'+BRL0(totOrc)+'</td>'+
+      '<td class="bh-num" style="border-top:2px solid var(--c-outline-variant);">'+BRL0(totReal)+'</td>'+
+      '<td class="bh-num" style="border-top:2px solid var(--c-outline-variant);">'+consGlobal.toFixed(0)+'%</td>'+
+      '<td style="border-top:2px solid var(--c-outline-variant);"></td>'+
+      '<td class="bh-num" style="border-top:2px solid var(--c-outline-variant);">'+BRL0(totProj)+'</td>'+
+      '<td class="bh-num '+(totDesvio>0?'bh-desvio-pos':'bh-desvio-neg')+'" style="border-top:2px solid var(--c-outline-variant);">'+(totDesvio>0?'+':'')+BRL0(totDesvio)+'</td>'+
+      '<td style="border-top:2px solid var(--c-outline-variant);"></td>'+
+      '<td style="border-top:2px solid var(--c-outline-variant);"></td>'+
+      '</tr></tfoot></table></div>';
+
+    // ── Legenda ──────────────────────────────────────────────────────────
+    html+='<div class="hx-legend" style="margin-top:14px;">'+
+      '<span class="hx-legend-label">Barra: realizado (sólido) + projeção no ritmo atual (hachura) · marca ▾ = orçado</span>'+
+    '</div></div>';
+
+    el.innerHTML=html;
+  }
+
   // ── RENDER ALL ────────────────────────────────────────────────────────
 
   function renderAll(data) {
@@ -1716,7 +1932,7 @@
     var kpis = calcKpis(data);
     updateKpis(kpis);
 
-    ['home-row1','home-row2','home-row3','home-row-prof','home-row5'].forEach(function(id){
+    ['home-row1','home-row2','home-row3','home-row-prof','home-row5','home-row-budget'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.style.display='';
     });
 
@@ -1726,6 +1942,7 @@
     renderRanking(data);
     renderProfDetail(data);
     renderHeatmap(data);
+    renderBudgetHealth();
   }
 
   // Carrega o forecast (Forecast/Realizado/Estimado por iniciativa) sob demanda.
@@ -1741,8 +1958,9 @@
         }
         _forecastLoaded = true;
         if (_rankDim === 'iniciativa') renderRanking(_filteredData);
+        renderBudgetHealth();
       })
-      .withFailureHandler(function(){ _forecastLoaded = true; })
+      .withFailureHandler(function(){ _forecastLoaded = true; renderBudgetHealth(); })
       .routerGetForecastData();
   }
 
