@@ -285,6 +285,63 @@
   white-space: nowrap;
 }
 
+/* Profissionais Alocados — barra de filtros locais */
+.prof-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 4px 2px 14px;
+}
+.prof-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.prof-filter label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-outline);
+}
+.prof-filter select,
+.prof-filter input {
+  font-size: 0.76rem;
+  color: var(--c-on-surface);
+  background: var(--c-surface);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-md);
+  padding: 6px 10px;
+  min-width: 150px;
+  max-width: 230px;
+  cursor: pointer;
+  transition: border-color var(--t-fast);
+}
+.prof-filter select:focus,
+.prof-filter input:focus { outline: none; border-color: var(--c-primary); }
+.prof-filter-search input { cursor: text; min-width: 170px; }
+.prof-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-surface-cont);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-md);
+  color: var(--c-on-surface-variant);
+  padding: 7px;
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.prof-clear-btn:hover { border-color: var(--c-primary); color: var(--c-primary); }
+.prof-count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--c-outline);
+  align-self: center;
+}
+
 /* Heatmap */
 .heatmap-table {
   border-collapse: collapse;
@@ -434,6 +491,45 @@
     </div>
   </div>
 
+  <!-- Row Prof: Profissionais Alocados (componente dedicado, filtros locais) -->
+  <div id="home-row-prof" class="home-section-mt" style="display:none;">
+    <div class="card">
+      <div class="card-header is-clickable" id="hdr-prof">
+        <div>
+          <h3>Profissionais Alocados</h3>
+          <div class="card-subtitle">Notas analíticas — ordenado por valor realizado — clique para detalhes</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
+          <span class="material-symbols-rounded" style="color:#8b5cf6;font-size:20px;">groups</span>
+        </div>
+      </div>
+      <div class="prof-toolbar">
+        <div class="prof-filter">
+          <label>Papel</label>
+          <select id="prof-f-papel"><option value="">Todos</option></select>
+        </div>
+        <div class="prof-filter">
+          <label>Iniciativa</label>
+          <select id="prof-f-iniciativa"><option value="">Todas</option></select>
+        </div>
+        <div class="prof-filter">
+          <label>Fornecedor</label>
+          <select id="prof-f-fornecedor"><option value="">Todos</option></select>
+        </div>
+        <div class="prof-filter prof-filter-search">
+          <label>Buscar</label>
+          <input type="text" id="prof-f-nome" placeholder="Nome ou matrícula...">
+        </div>
+        <button type="button" id="prof-f-clear" class="prof-clear-btn" title="Limpar filtros">
+          <span class="material-symbols-rounded" style="font-size:18px;">filter_alt_off</span>
+        </button>
+        <div class="prof-count" id="prof-count"></div>
+      </div>
+      <div id="home-prof-detail" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+
   <!-- Row 5: Heatmap Mês × Iniciativa -->
   <div id="home-row5" class="home-section-mt" style="display:none;">
     <div class="card">
@@ -479,6 +575,7 @@
   var _forecastRows   = [];   // linhas de routerGetForecastData (Forecast/Realizado/Estimado/...)
   var _forecastMonths = [];   // labels de meses do forecast ("jun.-26")
   var _forecastLoaded = false;
+  var _profFilters = { papel:'', iniciativa:'', fornecedor:'', nome:'' };  // filtros locais de Profissionais Alocados
 
   function R(n) { return Math.round((parseFloat(n)||0)*100)/100; }
   function BRL(n){ return R(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
@@ -523,6 +620,7 @@
       ['hdr-evolucao',   'evolucao_mensal', 'Evolução Mensal de Custos'],
       ['hdr-ini-bar',    'iniciativa',      'Distribuição por Iniciativa'],
       ['hdr-vencimentos','summary',         'Resumo — Vencimentos'],
+      ['hdr-prof',       'prestador',       'Profissionais Alocados'],
       ['hdr-heatmap',    'iniciativa',      'Heatmap — Detalhe por Iniciativa'],
     ];
     map.forEach(function(cfg) {
@@ -585,6 +683,33 @@
         renderRanking(_filteredData);
       });
     }
+
+    // Filtros locais de Profissionais Alocados
+    var profPapel = document.getElementById('prof-f-papel');
+    var profIni   = document.getElementById('prof-f-iniciativa');
+    var profForn  = document.getElementById('prof-f-fornecedor');
+    var profNome  = document.getElementById('prof-f-nome');
+    var profClear = document.getElementById('prof-f-clear');
+    function _onProfFilterChange() {
+      _profFilters.papel      = profPapel ? profPapel.value : '';
+      _profFilters.iniciativa = profIni   ? profIni.value   : '';
+      _profFilters.fornecedor = profForn  ? profForn.value  : '';
+      _profFilters.nome       = profNome  ? profNome.value  : '';
+      renderProfDetail(_filteredData);
+    }
+    if (profPapel) profPapel.addEventListener('change', _onProfFilterChange);
+    if (profIni)   profIni.addEventListener('change', _onProfFilterChange);
+    if (profForn)  profForn.addEventListener('change', _onProfFilterChange);
+    if (profNome)  profNome.addEventListener('input', _onProfFilterChange);
+    if (profClear) profClear.addEventListener('click', function(e) {
+      e.stopPropagation();
+      _profFilters = { papel:'', iniciativa:'', fornecedor:'', nome:'' };
+      if (profPapel) profPapel.value = '';
+      if (profIni)   profIni.value   = '';
+      if (profForn)  profForn.value  = '';
+      if (profNome)  profNome.value  = '';
+      renderProfDetail(_filteredData);
+    });
 
     // Toggle Próximos Vencimentos / NFs Vencidas
     var nfBar = document.getElementById('nf-toggle-bar');
@@ -1196,6 +1321,134 @@
     el.innerHTML=h;
   }
 
+  // ── PROFISSIONAIS ALOCADOS (componente dedicado + filtros locais) ─────
+
+  // Achata as linhas de profissionais de cada NF autorizada em entradas
+  // individuais, carregando iniciativa e fornecedor da NF de origem.
+  function _profEntries(data) {
+    var out = [];
+    data.forEach(function(row){
+      if((row.status_nfe||'').trim()!=='Autorizada') return;
+      if(!row.profissionais||!Array.isArray(row.profissionais)) return;
+      var ini = row.iniciativa||'—', forn = row.nome_fantasia||'—';
+      row.profissionais.forEach(function(p){
+        if(!p.nome_profissional||p.nome_profissional==='-') return;
+        out.push({
+          mat:   p.matricula||'',
+          nome:  p.nome_profissional,
+          papel: (p.papel_prestador||'').trim() || '—',
+          ini:   ini,
+          forn:  forn,
+          total: R(p.subtotal_nfe||0),
+          horas: parseFloat(p.total_horas)||0,
+          hh:    parseFloat(p.hh)||0
+        });
+      });
+    });
+    return out;
+  }
+
+  function _fillSelect(sel, values, current) {
+    if (!sel) return;
+    var first = sel.querySelector('option');  // mantém o "Todos/Todas"
+    var firstHtml = first ? first.outerHTML : '<option value="">Todos</option>';
+    var opts = values.slice().sort(function(a,b){return String(a).localeCompare(String(b),'pt-BR');});
+    sel.innerHTML = firstHtml + opts.map(function(v){
+      return '<option value="'+E(v)+'"'+(v===current?' selected':'')+'>'+E(v)+'</option>';
+    }).join('');
+    sel.value = current || '';
+  }
+
+  function renderProfDetail(data) {
+    var el = document.getElementById('home-prof-detail'); if(!el) return;
+    var entries = _profEntries(data);
+
+    // Opções dos dropdowns (a partir de TODAS as entradas, sem filtro local)
+    var papeis={}, inis={}, forns={};
+    entries.forEach(function(e){ papeis[e.papel]=1; inis[e.ini]=1; forns[e.forn]=1; });
+    _fillSelect(document.getElementById('prof-f-papel'),      Object.keys(papeis), _profFilters.papel);
+    _fillSelect(document.getElementById('prof-f-iniciativa'), Object.keys(inis),   _profFilters.iniciativa);
+    _fillSelect(document.getElementById('prof-f-fornecedor'), Object.keys(forns),  _profFilters.fornecedor);
+
+    // Aplica filtros locais no nível de entrada
+    var nq = (_profFilters.nome||'').trim().toLowerCase();
+    var filtered = entries.filter(function(e){
+      if (_profFilters.papel      && e.papel !== _profFilters.papel) return false;
+      if (_profFilters.iniciativa && e.ini   !== _profFilters.iniciativa) return false;
+      if (_profFilters.fornecedor && e.forn  !== _profFilters.fornecedor) return false;
+      if (nq && (e.nome.toLowerCase().indexOf(nq)===-1 && String(e.mat).toLowerCase().indexOf(nq)===-1)) return false;
+      return true;
+    });
+
+    // Agrega por profissional (matrícula|nome)
+    var profs={};
+    filtered.forEach(function(e){
+      var k=(e.mat||'')+'|'+e.nome;
+      if(!profs[k]) profs[k]={mat:e.mat,nome:e.nome,papeis:{},inis:{},forns:{},total:0,horas:0,nfs:0};
+      var d=profs[k];
+      d.total=R(d.total+e.total); d.horas+=e.horas; d.nfs++;
+      if(e.papel!=='—') d.papeis[e.papel]=1;
+      if(e.ini!=='—')   d.inis[e.ini]=1;
+      if(e.forn!=='—')  d.forns[e.forn]=1;
+    });
+
+    var sorted=Object.keys(profs).sort(function(a,b){return profs[b].total-profs[a].total;});
+    var countEl=document.getElementById('prof-count');
+    if(countEl) countEl.textContent = sorted.length+' profissiona'+(sorted.length===1?'l':'is');
+
+    if(sorted.length===0){
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">group_off</span><p>Nenhum profissional para os filtros selecionados</p></div>';
+      return;
+    }
+
+    var tot=sorted.reduce(function(s,k){return R(s+profs[k].total);},0)||1;
+    var maxV=profs[sorted[0]].total||1;
+
+    var h='<table class="home-table"><thead><tr>'+
+      '<th>#</th><th>Matrícula</th><th>Profissional</th><th>Papel</th>'+
+      '<th style="text-align:right;">Inic.</th><th style="text-align:right;">Forn.</th>'+
+      '<th style="text-align:right;">NFs</th><th style="text-align:right;">Horas</th>'+
+      '<th style="text-align:right;">R$/h</th><th style="text-align:right;">Total</th>'+
+      '<th style="min-width:90px;">Part.</th>'+
+      '</tr></thead><tbody>';
+    sorted.forEach(function(key,i){
+      var p=profs[key], c=_CL[i%_CL.length];
+      var papeisArr=Object.keys(p.papeis), nIni=Object.keys(p.inis).length, nForn=Object.keys(p.forns).length;
+      var papelLbl=papeisArr.length===0?'—':papeisArr.length===1?papeisArr[0]:papeisArr.length+' papéis';
+      var rhh=p.horas>0?p.total/p.horas:0;
+      var pct=p.total/tot*100, barPct=Math.min(100,p.total/maxV*100);
+      h+='<tr>'+
+        '<td><span class="home-rank-badge" style="background:'+c+';">'+(i+1)+'</span></td>'+
+        '<td class="col-mono" style="font-size:0.72rem;color:var(--c-outline);">'+E(p.mat)+'</td>'+
+        '<td style="font-weight:600;font-size:0.82rem;white-space:nowrap;">'+E(p.nome)+'</td>'+
+        '<td style="color:var(--c-outline);font-size:0.74rem;white-space:nowrap;" title="'+E(papeisArr.join(', '))+'">'+E(papelLbl)+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;" title="'+E(Object.keys(p.inis).join(', '))+'">'+nIni+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;" title="'+E(Object.keys(p.forns).join(', '))+'">'+nForn+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.nfs+'</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+p.horas.toFixed(1)+'h</td>'+
+        '<td class="col-mono" style="text-align:right;font-size:0.74rem;color:var(--c-outline);">'+BRL0(rhh)+'</td>'+
+        '<td class="col-valor" style="text-align:right;font-size:0.78rem;font-weight:700;">'+BRL0(p.total)+'</td>'+
+        '<td><div style="display:flex;align-items:center;gap:7px;">'+
+            '<div class="rank-bar-track"><div class="rank-bar-fill" style="width:'+barPct.toFixed(0)+'%;background:'+c+';"></div></div>'+
+            '<span style="font-size:0.68rem;font-weight:700;color:'+c+';font-family:DM Mono,monospace;min-width:38px;text-align:right;">'+pct.toFixed(1)+'%</span>'+
+          '</div></td>'+
+        '</tr>';
+    });
+    // Total geral
+    var tHoras=0,tNfs=0;
+    sorted.forEach(function(k){ tHoras+=profs[k].horas; tNfs+=profs[k].nfs; });
+    h+='</tbody><tfoot><tr style="font-weight:700;background:var(--c-surface-cont-low);">'+
+      '<td></td><td></td>'+
+      '<td style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--c-on-surface-variant);">Total ('+sorted.length+')</td>'+
+      '<td></td><td></td><td></td>'+
+      '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+tNfs+'</td>'+
+      '<td class="col-mono" style="text-align:right;font-size:0.75rem;">'+tHoras.toFixed(1)+'h</td>'+
+      '<td></td>'+
+      '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL0(tot)+'</td>'+
+      '<td></td></tr></tfoot></table>';
+    el.innerHTML=h;
+  }
+
   // ── HEATMAP: MÊS × INICIATIVA ────────────────────────────────────────
 
   function renderHeatmap(data) {
@@ -1294,7 +1547,7 @@
     var kpis = calcKpis(data);
     updateKpis(kpis);
 
-    ['home-row1','home-row2','home-row3','home-row5'].forEach(function(id){
+    ['home-row1','home-row2','home-row3','home-row-prof','home-row5'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.style.display='';
     });
 
@@ -1302,6 +1555,7 @@
     renderEvolucao(data);
     renderNfActive(data);
     renderRanking(data);
+    renderProfDetail(data);
     renderHeatmap(data);
   }
 
