@@ -48,8 +48,7 @@
 .evo-chart svg {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 300px;   /* mantém o gráfico compacto na vertical em telas largas */
+  height: auto;   /* viewBox acompanha a largura real → cobre 100% e mantém altura baixa */
 }
 
 .evo-dist {
@@ -486,6 +485,15 @@
         else _openTab('iniciativa', 'Distribuição por Iniciativa');
       });
     }
+
+    // Re-renderiza o gráfico ao redimensionar (viewBox acompanha a largura real)
+    var _evoResizeT;
+    window.addEventListener('resize', function() {
+      clearTimeout(_evoResizeT);
+      _evoResizeT = setTimeout(function() {
+        if (_loaded && document.getElementById('home-chart-evolucao')) renderEvolucao(_filteredData);
+      }, 180);
+    });
   }
 
   // ── KPIs ──────────────────────────────────────────────────────────────
@@ -605,8 +613,10 @@
     }
 
     // 3. Geometria (chart full width, compacto na vertical)
-    // viewBox largo (ratio ~4:1) p/ que ao escalar 100% a altura fique baixa.
-    var W=1000,H=250,PL=64,PR=18,PT=30,PB=46;
+    // O viewBox acompanha a LARGURA REAL do contêiner e a altura é fixa, então
+    // o gráfico cobre 100% da largura sem letterbox e fica baixo na vertical.
+    var cw = el.clientWidth || (el.parentElement ? el.parentElement.clientWidth : 0) || 1000;
+    var W=Math.max(620, Math.round(cw)), H=270, PL=64, PR=18, PT=30, PB=46;
     var gW=W-PL-PR, gH=H-PT-PB;
     var maxV = Math.max.apply(null,sorted.map(function(m){return m.total;}))||1;
     var n=sorted.length, slot=gW/n;
