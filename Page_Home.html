@@ -192,6 +192,36 @@
   opacity: 1;
 }
 
+/* Vencimentos / Vencidas — toggle + scroll */
+.nf-toggle-bar {
+  display: flex;
+  gap: 6px;
+  padding: 4px 2px 12px;
+}
+.nf-toggle-btn {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--c-on-surface-variant);
+  background: var(--c-surface-cont);
+  border: 1px solid var(--c-outline-variant);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.nf-toggle-btn:hover { border-color: var(--c-primary); color: var(--c-on-surface); }
+.nf-toggle-btn.active {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #fff;
+}
+/* thead ~32px + 5 data rows ~38px each = ~222px visible */
+.nf-table-scroll {
+  max-height: 226px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
 /* Heatmap */
 .heatmap-table {
   border-collapse: collapse;
@@ -288,33 +318,24 @@
     </div>
   </div>
 
-  <!-- Row 2: Próximos Vencimentos + NFs Vencidas -->
-  <div id="home-row2" class="home-two-col-eq" style="display:none;">
+  <!-- Row 2: Vencimentos (Próximos / Vencidas em um único card com toggle) -->
+  <div id="home-row2" class="home-section-mt" style="display:none;">
     <div class="card">
       <div class="card-header is-clickable" id="hdr-vencimentos">
         <div>
-          <h3>Próximos Vencimentos</h3>
-          <div class="card-subtitle">NFs autorizadas vencendo em até 30 dias</div>
+          <h3 id="nf-card-title">Próximos Vencimentos</h3>
+          <div class="card-subtitle" id="nf-card-subtitle">NFs autorizadas vencendo em até 30 dias</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="material-symbols-rounded hdr-expand">open_in_full</span>
-          <span class="material-symbols-rounded" style="color:var(--c-warning);font-size:20px;">event_upcoming</span>
+          <span class="material-symbols-rounded" id="nf-card-icon" style="color:var(--c-warning);font-size:20px;">event_upcoming</span>
         </div>
       </div>
-      <div id="home-vencimentos" style="overflow-x:auto;"></div>
-    </div>
-    <div class="card">
-      <div class="card-header is-clickable" id="hdr-vencidas">
-        <div>
-          <h3>NFs Vencidas</h3>
-          <div class="card-subtitle">Autorizadas com data de vencimento expirada</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span class="material-symbols-rounded hdr-expand">open_in_full</span>
-          <span class="material-symbols-rounded" style="color:var(--c-error);font-size:20px;">warning</span>
-        </div>
+      <div class="nf-toggle-bar" id="nf-toggle-bar">
+        <button type="button" class="nf-toggle-btn active" data-nfview="vencimentos">Próximos Vencimentos</button>
+        <button type="button" class="nf-toggle-btn" data-nfview="vencidas">NFs Vencidas</button>
       </div>
-      <div id="home-vencidas" style="overflow-x:auto;"></div>
+      <div class="nf-table-scroll" id="home-nf-content"></div>
     </div>
   </div>
 
@@ -404,6 +425,7 @@
   var _hdrsAttached = false;
   var _prestadoresAtivos = 0;  // total de prestadores Ativos (aba PRESTADOR)
   var _evoDim = 'iniciativa';   // dimensão de divisão das barras da Evolução Mensal
+  var _nfView = 'vencimentos';  // 'vencimentos' | 'vencidas'
 
   function R(n) { return Math.round((parseFloat(n)||0)*100)/100; }
   function BRL(n){ return R(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
@@ -448,7 +470,6 @@
       ['hdr-evolucao',   'evolucao_mensal', 'Evolução Mensal de Custos'],
       ['hdr-ini-bar',    'iniciativa',      'Distribuição por Iniciativa'],
       ['hdr-vencimentos','summary',         'Resumo — Vencimentos'],
-      ['hdr-vencidas',   'summary',         'Resumo — NFs Vencidas'],
       ['hdr-rank-ini',   'iniciativa',      'Ranking de Iniciativas'],
       ['hdr-rank-forn',  'fornecedor',      'Ranking de Fornecedores'],
       ['hdr-prof',       'prestador',       'Profissionais Alocados'],
@@ -473,6 +494,20 @@
         _evoDim = btn.dataset.dim;
         evoTb.querySelectorAll('.evo-dim-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
         renderEvolucao(_filteredData);
+      });
+    }
+
+    // Toggle Próximos Vencimentos / NFs Vencidas
+    var nfBar = document.getElementById('nf-toggle-bar');
+    if (nfBar) {
+      nfBar.addEventListener('click', function(e) {
+        var btn = e.target.closest ? e.target.closest('.nf-toggle-btn') : null;
+        if (!btn) return;
+        e.stopPropagation();
+        _nfView = btn.dataset.nfview;
+        nfBar.querySelectorAll('.nf-toggle-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
+        _updateNfCardMeta();
+        renderNfActive(_filteredData);
       });
     }
 
@@ -752,6 +787,26 @@
     el.innerHTML=html;
   }
 
+  // ── VENCIMENTOS: helpers ─────────────────────────────────────────────
+
+  function _updateNfCardMeta() {
+    var isVenc = _nfView === 'vencimentos';
+    var title  = document.getElementById('nf-card-title');
+    var sub    = document.getElementById('nf-card-subtitle');
+    var icon   = document.getElementById('nf-card-icon');
+    if (title) title.textContent = isVenc ? 'Próximos Vencimentos' : 'NFs Vencidas';
+    if (sub)   sub.textContent   = isVenc ? 'NFs autorizadas vencendo em até 30 dias' : 'Autorizadas com data de vencimento expirada';
+    if (icon) {
+      icon.textContent = isVenc ? 'event_upcoming' : 'warning';
+      icon.style.color = isVenc ? 'var(--c-warning)' : 'var(--c-error)';
+    }
+  }
+
+  function renderNfActive(data) {
+    if (_nfView === 'vencidas') renderVencidas(data);
+    else renderVencimentos(data);
+  }
+
   // ── TABLE: PRÓXIMOS VENCIMENTOS ───────────────────────────────────────
 
   function renderVencimentos(data) {
@@ -764,10 +819,10 @@
       if(dd>=0&&dd<=30) prox.push({dataStr:d.toLocaleDateString('pt-BR'),forn:row.nome_fantasia||'—',ini:row.iniciativa||'—',val:R(row.total_nfe||0),dias:dd});
     });
     prox.sort(function(a,b){return a.dias-b.dias;});
-    var el=document.getElementById('home-vencimentos'); if(!el) return;
+    var el=document.getElementById('home-nf-content'); if(!el) return;
     if(prox.length===0){el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">check_circle</span><p>Sem vencimentos nos próximos 30 dias</p></div>';return;}
     var h='<table class="home-table"><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Iniciativa</th><th style="text-align:right;">Valor</th><th>Prazo</th></tr></thead><tbody>';
-    prox.slice(0,10).forEach(function(v){
+    prox.forEach(function(v){
       var chipStyle=v.dias<=7?'background:var(--c-error-cont);color:var(--c-error);':'background:var(--c-warning-cont);color:var(--c-warning);';
       var txt=v.dias===0?'hoje':v.dias+'d';
       h+='<tr>'+
@@ -779,7 +834,6 @@
         '</tr>';
     });
     h+='</tbody></table>';
-    if(prox.length>10) h+='<div style="padding:8px 10px;font-size:0.72rem;color:var(--c-outline);">+'+(prox.length-10)+' mais</div>';
     el.innerHTML=h;
   }
 
@@ -795,10 +849,10 @@
       if(dd<0) venc.push({dataStr:d.toLocaleDateString('pt-BR'),forn:row.nome_fantasia||'—',ini:row.iniciativa||'—',val:R(row.total_nfe||0),dias:Math.abs(dd)});
     });
     venc.sort(function(a,b){return b.dias-a.dias;});
-    var el=document.getElementById('home-vencidas'); if(!el) return;
+    var el=document.getElementById('home-nf-content'); if(!el) return;
     if(venc.length===0){el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">check_circle</span><p>Nenhuma NF vencida</p></div>';return;}
     var h='<table class="home-table"><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Iniciativa</th><th style="text-align:right;">Valor</th><th>Atraso</th></tr></thead><tbody>';
-    venc.slice(0,10).forEach(function(v){
+    venc.forEach(function(v){
       h+='<tr>'+
         '<td class="col-mono" style="font-size:0.75rem;">'+E(v.dataStr)+'</td>'+
         '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+E(v.forn)+'">'+E(v.forn)+'</td>'+
@@ -808,7 +862,6 @@
         '</tr>';
     });
     h+='</tbody></table>';
-    if(venc.length>10) h+='<div style="padding:8px 10px;font-size:0.72rem;color:var(--c-outline);">+'+(venc.length-10)+' mais</div>';
     el.innerHTML=h;
   }
 
@@ -1013,8 +1066,7 @@
     });
 
     renderEvolucao(data);
-    renderVencimentos(data);
-    renderVencidas(data);
+    renderNfActive(data);
     renderIniciativas(data);
     renderFornecedores(data);
     renderProfissionais(data);
