@@ -259,6 +259,29 @@ window.CardFilter = (function() {
   //   Status      = "Autorizada"
   //   Competência = todos os meses do ano vigente (ano do último mês da NOTA_FISCAL)
   //   Iniciativa  = apenas as Ativas (cruzadas com activeIniciativas do FORECAST)
+  // Acrescenta às competências os 12 meses do ano vigente (maior ano presente),
+  // mesmo que ainda não existam notas fiscais para esses meses. Mantém o formato
+  // "MM/yyyy" usado pela NOTA_FISCAL para preservar o matching dos demais fluxos.
+  function _ensureFullYearCompetencia() {
+    var comps = _values['competencia'];
+    if (!comps) { comps = []; _values['competencia'] = comps; }
+
+    var maxYear = 0;
+    comps.forEach(function (c) {
+      var m = String(c).match(/(\d{4})/);
+      if (m) { var y = parseInt(m[1]); if (y > maxYear) maxYear = y; }
+    });
+    if (!maxYear) return;  // sem nenhuma competência válida, nada a completar
+
+    var present = {};
+    comps.forEach(function (c) { present[String(c).trim()] = true; });
+    for (var mo = 1; mo <= 12; mo++) {
+      var mm  = (mo < 10 ? '0' : '') + mo;
+      var key = mm + '/' + maxYear;
+      if (!present[key]) { comps.push(key); present[key] = true; }
+    }
+  }
+
   function _applyDefaults() {
     var status = _values['status_nfe'] || [];
     if (status.indexOf('Autorizada') !== -1) {
@@ -326,9 +349,10 @@ window.CardFilter = (function() {
     });
     
     var sorted = {};
-    Object.keys(grouped).sort().reverse().forEach(function(ano) {
+    // Anos do mais recente para o mais antigo; meses em ordem crescente (jan→dez).
+    Object.keys(grouped).sort(function(a, b) { return parseInt(b) - parseInt(a); }).forEach(function(ano) {
       sorted[ano] = grouped[ano].sort(function(a, b) {
-        return b.mes - a.mes;
+        return a.mes - b.mes;
       }).map(function(item) { return item.formatted; });
     });
     return sorted;
@@ -467,6 +491,10 @@ window.CardFilter = (function() {
         if (res.iniciativaOptions && res.iniciativaOptions.length > 0) {
           _iniOptions = res.iniciativaOptions;
         }
+
+        // Garante que TODOS os 12 meses do ano vigente apareçam no filtro de
+        // Competência — não apenas os meses presentes na NOTA_FISCAL.
+        _ensureFullYearCompetencia();
 
         // Validar se valores estão vazios
         var hasValues = Object.keys(_values).some(function(k) { return _values[k] && _values[k].length > 0; });
