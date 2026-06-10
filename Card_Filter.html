@@ -301,6 +301,11 @@ window.CardFilter = (function() {
 
   function _emit() {
     if (typeof _callback === 'function') _callback(_filters);
+    // Dispara evento global para que QUALQUER componente da Home possa reagir
+    // aos filtros (ex.: Controle Orçamentário), não apenas o callback do Home.
+    try {
+      window.dispatchEvent(new CustomEvent('filterchange', { detail: { filters: _filters } }));
+    } catch (e) {}
   }
 
   function _groupByYear(items) {

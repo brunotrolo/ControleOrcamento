@@ -438,8 +438,52 @@ window.BudgetControl = (function () {
   var _loaded    = false;
   var _search    = '';
   var _filterIni   = [];  // active initiative filter from Card_Filter
+  var _filterMonths = [];  // labels "jan.-26" derivados do filtro de Competência do Card_Filter
   var _mesReferencia = '';  // label "jan.-26" do mês de referência para Forecast Ajustado
   var _statusFilter  = ['Ativa'];  // padrão: só Ativas; '' = todas
+
+  var _PTR_MON = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+  // Converte um valor de Competência do Card_Filter ("MAR/2026" ou "03/2026")
+  // para o label de mês usado aqui ("mar.-26"). Retorna null se não reconhecer.
+  function _compToLabel(c) {
+    var s = String(c || '').trim();
+    var m = s.match(/^([A-Za-zçÇ]{3,})[\/\-.\s](\d{2,4})$/);
+    if (m) {
+      var key = m[1].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, 3);
+      var idx = _PTR_MON.indexOf(key);
+      if (idx !== -1) return _PTR_MON[idx] + '.-' + String(m[2]).slice(-2);
+    }
+    var m2 = s.match(/^(\d{1,2})[\/\-.\s](\d{2,4})$/);
+    if (m2) {
+      var mo = parseInt(m2[1]) - 1;
+      if (mo >= 0 && mo <= 11) return _PTR_MON[mo] + '.-' + String(m2[2]).slice(-2);
+    }
+    return null;
+  }
+
+  // Meses visíveis: respeita o filtro de Competência. Se vazio, mostra todos.
+  function _visibleMonths() {
+    if (!_filterMonths.length) return _months;
+    var set = {};
+    _filterMonths.forEach(function (m) { set[m] = true; });
+    return _months.filter(function (m) { return set[m]; });
+  }
+
+  // Soma os valores mensais de uma linha apenas nos meses informados.
+  function _sumMonths(monthly, vm) {
+    return vm.reduce(function (s, m) { return _R(s + (monthly[m] || 0)); }, 0);
+  }
+
+  // Lê os filtros atuais diretamente do Card_Filter (fonte da verdade),
+  // mapeando Iniciativa e Competência para o estado interno do componente.
+  function _syncFromCardFilter() {
+    if (typeof CardFilter === 'undefined' || typeof CardFilter.getFilters !== 'function') return;
+    var f = CardFilter.getFilters() || {};
+    _filterIni = (f.iniciativa && f.iniciativa.length > 0) ? f.iniciativa : [];
+    var comps = f.competencia || [];
+    _filterMonths = comps.map(_compToLabel).filter(Boolean);
+  }
 
   function _normStatus(s) {
     var k = String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -555,12 +599,13 @@ window.BudgetControl = (function () {
   }
 
   function _computeSummary() {
+    var vm = _visibleMonths();
     var tF = 0, tR = 0, tFA = 0, tEst = 0;
     _visGroups.forEach(function (g) {
-      if (g.tipoRows['Forecast'])           tF  = _R(tF  + g.tipoRows['Forecast'].projecao);
-      if (g.tipoRows['Realizado'])          tR  = _R(tR  + g.tipoRows['Realizado'].projecao);
-      if (g.tipoRows['Forecast Ajustado']) tFA = _R(tFA + g.tipoRows['Forecast Ajustado'].projecao);
-      if (g.tipoRows['Estimado'])           tEst = _R(tEst + g.tipoRows['Estimado'].projecao);
+      if (g.tipoRows['Forecast'])           tF  = _R(tF  + _sumMonths(g.tipoRows['Forecast'].monthly, vm));
+      if (g.tipoRows['Realizado'])          tR  = _R(tR  + _sumMonths(g.tipoRows['Realizado'].monthly, vm));
+      if (g.tipoRows['Forecast Ajustado']) tFA = _R(tFA + _sumMonths(g.tipoRows['Forecast Ajustado'].monthly, vm));
+      if (g.tipoRows['Estimado'])           tEst = _R(tEst + _sumMonths(g.tipoRows['Estimado'].monthly, vm));
     });
     var saldo = _R(tF - tR);
     var pct   = tF ? Math.min(100, Math.round((tR / tF) * 100)) : 0;
@@ -613,11 +658,12 @@ window.BudgetControl = (function () {
   }
 
   function _buildThead() {
+    var vm = _visibleMonths();
     var html = '<tr>';
     html += '<th style="left:0;min-width:140px;max-width:140px;">Tipo</th>';
     html += '<th style="left:140px;min-width:80px;max-width:80px;">Item</th>';
     html += '<th style="text-align:right;min-width:110px;">Projeção</th>';
-    _months.forEach(function (m) {
+    vm.forEach(function (m) {
       var isRef = m === _mesReferencia;
       var extra = isRef
         ? ' style="min-width:92px;background:color-mix(in srgb,#d97706 14%,var(--c-surface-cont-low));color:#d97706;border-bottom:3px solid #d97706;"'
@@ -629,8 +675,9 @@ window.BudgetControl = (function () {
   }
 
   function _buildTfoot(allGroups) {
+    var vm = _visibleMonths();
     var totals = {};
-    _months.forEach(function (m) { totals[m] = { F: 0, R: 0, Res: 0, FA: 0, Est: 0 }; });
+    vm.forEach(function (m) { totals[m] = { F: 0, R: 0, Res: 0, FA: 0, Est: 0 }; });
     var tProjF = 0, tProjR = 0, tProjRes = 0, tProjFA = 0, tProjEst = 0;
 
     allGroups.forEach(function (g) {
@@ -638,12 +685,13 @@ window.BudgetControl = (function () {
         if (!g.tipoRows[tipo]) return;
         var row = g.tipoRows[tipo];
         var key = tipo === 'Forecast' ? 'F' : tipo === 'Realizado' ? 'R' : tipo === 'Resultado' ? 'Res' : tipo === 'Forecast Ajustado' ? 'FA' : 'Est';
-        if (tipo === 'Forecast')           tProjF   = _R(tProjF   + row.projecao);
-        if (tipo === 'Realizado')          tProjR   = _R(tProjR   + row.projecao);
-        if (tipo === 'Resultado')          tProjRes = _R(tProjRes + row.projecao);
-        if (tipo === 'Forecast Ajustado') tProjFA  = _R(tProjFA  + row.projecao);
-        if (tipo === 'Estimado')           tProjEst = _R(tProjEst + row.projecao);
-        _months.forEach(function (m) {
+        var proj = _sumMonths(row.monthly, vm);
+        if (tipo === 'Forecast')           tProjF   = _R(tProjF   + proj);
+        if (tipo === 'Realizado')          tProjR   = _R(tProjR   + proj);
+        if (tipo === 'Resultado')          tProjRes = _R(tProjRes + proj);
+        if (tipo === 'Forecast Ajustado') tProjFA  = _R(tProjFA  + proj);
+        if (tipo === 'Estimado')           tProjEst = _R(tProjEst + proj);
+        vm.forEach(function (m) {
           totals[m][key] = _R((totals[m][key] || 0) + (row.monthly[m] || 0));
         });
       });
@@ -654,7 +702,7 @@ window.BudgetControl = (function () {
       html += '<td style="text-align:left;position:sticky;left:0;z-index:4;">';
       html += '<span class="bc-tipo-badge ' + cls + '">' + label + '</span></td>';
       html += '<td style="text-align:right;">' + _fmtColored(proj, tipo) + '</td>';
-      _months.forEach(function (m) {
+      vm.forEach(function (m) {
         html += '<td>' + _fmtColored(totals[m][key], tipo) + '</td>';
       });
       html += '</tr>';
@@ -669,15 +717,16 @@ window.BudgetControl = (function () {
   }
 
   function _buildGroupRows(g, idx) {
+    var vm = _visibleMonths();
     var gId   = 'bcg-' + idx;
     var isCollapsed = !!_collapsed[gId];
     var hidCls = isCollapsed ? ' bc-hidden' : '';
 
     var reRow = g.tipoRows['Realizado'];
-    var projR = reRow ? _fmtCompact(reRow.projecao) : '<span class="bc-dash">—</span>';
+    var projR = reRow ? _fmtCompact(_sumMonths(reRow.monthly, vm)) : '<span class="bc-dash">—</span>';
 
     var html = '<tr class="bc-group-hdr" data-gid="' + gId + '" onclick="BudgetControl.toggleGroup(\'' + gId + '\')">';
-    html += '<td colspan="' + (3 + _months.length) + '">';
+    html += '<td colspan="' + (3 + vm.length) + '">';
     html += '<span class="material-symbols-rounded bc-chevron' + (isCollapsed ? ' collapsed' : '') + '" id="chv-' + gId + '">expand_more</span>';
     html += '<span class="bc-inibank-badge">' + _esc(g.inibank) + '</span> ';
     var nomeIni = (g.iniciativa && g.iniciativa !== g.inibank) ? g.iniciativa : '';
@@ -694,8 +743,8 @@ window.BudgetControl = (function () {
       html += '<tr class="bc-tipo-row' + hidCls + '" data-gid="' + gId + '">';
       html += '<td><span class="bc-tipo-badge ' + badgeCls + '">' + _esc(tipo) + '</span></td>';
       html += '<td style="text-align:right;"><span class="bc-item-chip">' + _esc(item) + '</span></td>';
-      html += '<td style="text-align:right;">' + _fmtColored(row.projecao, tipo) + '</td>';
-      _months.forEach(function (m) {
+      html += '<td style="text-align:right;">' + _fmtColored(_sumMonths(row.monthly, vm), tipo) + '</td>';
+      vm.forEach(function (m) {
         var v = row.monthly[m];
         html += '<td>' + _fmtColored(_R(v !== undefined ? v : 0), tipo) + '</td>';
       });
@@ -730,7 +779,7 @@ window.BudgetControl = (function () {
         : _groups.length === 0
         ? 'Nenhuma iniciativa detectada. Verifique se a aba FORECAST possui colunas INIBANK e Tipo.'
         : 'Nenhuma iniciativa encontrada para o filtro aplicado.';
-      tbody.innerHTML = '<tr><td class="bc-placeholder" colspan="' + (3 + _months.length) + '">' + emptyMsg + '</td></tr>';
+      tbody.innerHTML = '<tr><td class="bc-placeholder" colspan="' + (3 + _visibleMonths().length) + '">' + emptyMsg + '</td></tr>';
       if (tfoot) tfoot.innerHTML = '';
       return;
     }
@@ -783,6 +832,9 @@ window.BudgetControl = (function () {
         if (res.mesReferencia) _mesReferencia = res.mesReferencia;
         _updateMesRefSelector(_months, _mesReferencia);
         _groups  = _buildGroups(_rawRows);
+        // Sincroniza com os filtros atuais do Card_Filter (caso já tenham sido
+        // aplicados antes deste componente carregar seus dados).
+        _syncFromCardFilter();
         _render();
       })
       .withFailureHandler(function (e) {
@@ -840,6 +892,8 @@ window.BudgetControl = (function () {
     window.addEventListener('filterchange', function (e) {
       var filters = (e && e.detail && e.detail.filters) ? e.detail.filters : {};
       _filterIni = (filters.iniciativa && filters.iniciativa.length > 0) ? filters.iniciativa : [];
+      var comps = filters.competencia || [];
+      _filterMonths = comps.map(_compToLabel).filter(Boolean);
       if (_groups.length > 0) _render();
     });
 
