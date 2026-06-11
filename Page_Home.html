@@ -365,7 +365,7 @@
 .pvt-btn.pvt-active { background: var(--c-primary); color: var(--c-on-primary); }
 .squad-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
   gap: 18px; padding: 4px 0 12px;
 }
 .squad-card {
@@ -385,18 +385,25 @@
 .squad-hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .squad-total-val { font-size: 1.0rem; font-weight: 800; color: white; font-family: DM Mono, monospace; white-space: nowrap; }
 .squad-count-badge { font-size: 0.61rem; font-weight: 600; background: rgba(255,255,255,0.20); color: rgba(255,255,255,0.90); border-radius: 20px; padding: 1px 8px; }
-.squad-members { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; flex: 1; }
-.sq-member { background: var(--c-surface-cont-low); border: 1px solid var(--c-outline-variant); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
-.sq-member-top { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
-.sq-mat { font-size: 0.59rem; font-family: DM Mono, monospace; color: var(--c-outline); letter-spacing: 0.03em; }
+.squad-members { padding: 4px 0; flex: 1; overflow-x: auto; }
+.squad-members table { width: 100%; border-collapse: collapse; }
+.squad-members th {
+  font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--c-outline); text-align: left; padding: 6px 10px 4px;
+  border-bottom: 1px solid var(--c-outline-variant); white-space: nowrap;
+}
+.squad-members th.num, .squad-members td.num { text-align: right; }
+.squad-members td {
+  font-size: 0.72rem; padding: 6px 10px; border-bottom: 1px solid var(--c-surface-cont);
+  white-space: nowrap; vertical-align: middle;
+}
+.squad-members tr:last-child td { border-bottom: none; }
+.squad-members tr:hover td { background: var(--c-surface-cont-low); }
+.sq-mat { font-size: 0.62rem; font-family: DM Mono, monospace; color: var(--c-outline); letter-spacing: 0.03em; }
 .sq-pill { font-size: 0.57rem; font-weight: 700; padding: 1px 7px; border-radius: 20px; white-space: nowrap; }
-.sq-nome { font-size: 0.81rem; font-weight: 700; color: var(--c-on-surface); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sq-papel { font-size: 0.67rem; color: var(--c-outline); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sq-inibank { font-size: 0.59rem; font-family: DM Mono, monospace; color: var(--c-outline); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sq-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 3px; }
-.sq-metric { display: flex; flex-direction: column; gap: 1px; }
-.sq-metric-lbl { font-size: 0.52rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--c-outline); font-weight: 600; }
-.sq-metric-val { font-size: 0.68rem; font-weight: 700; font-family: DM Mono, monospace; color: var(--c-on-surface); }
+.sq-nome { font-weight: 700; color: var(--c-on-surface); max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+.sq-papel { color: var(--c-outline); font-size: 0.66rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.sq-num { font-family: DM Mono, monospace; font-size: 0.69rem; }
 .squad-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-top: 1px solid var(--c-outline-variant); background: var(--c-surface-cont-low); }
 .squad-footer-lbl { font-size: 0.60rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--c-outline); font-weight: 600; }
 .squad-footer-val { font-size: 0.82rem; font-weight: 800; font-family: DM Mono, monospace; }
@@ -1786,28 +1793,29 @@
       h += '<span class="squad-count-badge">'+sq.members.length+' membro'+(sq.members.length===1?'':'s')+'</span>';
       h += '</div></div>';
 
-      h += '<div class="squad-members">';
+      h += '<div class="squad-members"><table><thead><tr>'+
+        '<th>Matrícula</th><th>Nome</th><th>Papel</th>'+
+        '<th class="num">Rate Card</th><th class="num">Est. Mensal</th><th class="num">Realizado</th>'+
+        '</tr></thead><tbody>';
       sq.members.forEach(function(m){
         var stStyle = m.status==='Ativo'
           ? 'background:rgba(16,185,129,0.14);color:#10b981;'
           : m.status==='Inativo'
             ? 'background:var(--c-error-cont);color:var(--c-error);'
             : 'background:var(--c-surface-cont);color:var(--c-outline);';
-        h += '<div class="sq-member">';
-        h += '<div class="sq-member-top">';
-        h += '<span class="sq-mat">'+E(m.mat)+'</span>';
-        h += '<span class="sq-pill" style="'+stStyle+'">'+E(m.status)+'</span>';
-        h += '</div>';
-        h += '<div class="sq-nome" title="'+E(m.nome)+'">'+E(m.nome)+'</div>';
-        h += '<div class="sq-papel">'+E(m.papel)+'</div>';
-        if(m.inibank && m.inibank !== ini) h += '<div class="sq-inibank">&#9679; INIBANK: '+E(m.inibank)+'</div>';
-        h += '<div class="sq-metrics">';
-        h += '<div class="sq-metric"><span class="sq-metric-lbl">Rate Card</span><span class="sq-metric-val">'+(m.hh?BRL(m.hh):'—')+'</span></div>';
-        h += '<div class="sq-metric"><span class="sq-metric-lbl">Est. Mensal</span><span class="sq-metric-val">'+(m.estMensal?BRL0(m.estMensal):'—')+'</span></div>';
-        h += '<div class="sq-metric"><span class="sq-metric-lbl">Realizado</span><span class="sq-metric-val" style="color:'+color+';">'+(m.realIni?BRL0(m.realIni):'—')+'</span></div>';
-        h += '</div></div>';
+        h += '<tr>';
+        h += '<td><span class="sq-mat">'+E(m.mat)+'</span></td>';
+        h += '<td><div style="display:flex;align-items:center;gap:6px;">'+
+              '<span class="sq-nome" title="'+E(m.nome)+'">'+E(m.nome)+'</span>'+
+              '<span class="sq-pill" style="'+stStyle+'">'+E(m.status)+'</span>'+
+             '</div></td>';
+        h += '<td><span class="sq-papel" title="'+E(m.papel)+'">'+E(m.papel)+'</span></td>';
+        h += '<td class="num sq-num" style="color:var(--c-outline);">'+(m.hh?BRL(m.hh):'—')+'</td>';
+        h += '<td class="num sq-num" style="color:var(--c-outline);">'+(m.estMensal?BRL0(m.estMensal):'—')+'</td>';
+        h += '<td class="num sq-num" style="font-weight:700;color:'+color+';">'+(m.realIni?BRL0(m.realIni):'—')+'</td>';
+        h += '</tr>';
       });
-      h += '</div>';
+      h += '</tbody></table></div>';
 
       h += '<div class="squad-footer">';
       h += '<span class="squad-footer-lbl">Total do Squad</span>';
