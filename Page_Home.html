@@ -383,12 +383,12 @@
 .squad-ini-code { font-size: 0.62rem; font-family: DM Mono, monospace; color: rgba(255,255,255,0.72); text-transform: uppercase; letter-spacing: 0.1em; }
 .squad-ini-name { font-size: 0.90rem; font-weight: 700; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .squad-hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-.squad-us-kpi { font-size: 1.15rem; font-weight: 900; color: white; font-family: DM Mono, monospace; white-space: nowrap; line-height: 1.1; }
-.squad-us-kpi span { font-size: 0.58rem; font-weight: 600; margin-left: 3px; vertical-align: middle; }
-.squad-us-sub { font-size: 0.55rem; color: rgba(255,255,255,0.65); letter-spacing: 0.04em; text-align: right; }
+.squad-us-kpi { font-size: 1.10rem; font-weight: 900; color: white; font-family: DM Mono, monospace; white-space: nowrap; line-height: 1.1; }
+.squad-us-kpi span { font-size: 0.52rem; font-weight: 600; color: rgba(255,255,255,0.78); display: block; text-align: right; margin-top: 1px; letter-spacing: 0.02em; }
+.squad-us-sub { font-size: 0.54rem; color: rgba(255,255,255,0.62); letter-spacing: 0.03em; text-align: right; }
 .squad-count-badge { font-size: 0.61rem; font-weight: 600; background: rgba(255,255,255,0.20); color: rgba(255,255,255,0.90); border-radius: 20px; padding: 1px 8px; }
-.squad-roles { display: flex; flex-wrap: wrap; gap: 5px; padding: 7px 14px 9px; background: rgba(0,0,0,0.14); }
-.squad-role-chip { font-size: 0.59rem; font-weight: 700; background: rgba(255,255,255,0.14); color: rgba(255,255,255,0.88); border-radius: 20px; padding: 2px 9px; white-space: nowrap; }
+.squad-roles { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px 14px; background: var(--c-surface-cont-low); border-bottom: 1px solid var(--c-outline-variant); }
+.squad-role-chip { font-size: 0.60rem; font-weight: 700; border-radius: 20px; padding: 2px 10px; white-space: nowrap; }
 .squad-members { padding: 4px 0; flex: 1; overflow-x: auto; }
 .squad-members table { width: 100%; border-collapse: collapse; }
 .squad-members th {
@@ -1790,13 +1790,10 @@
       var color   = _CL[idx % _CL.length];
       var iniLabel = descs[ini] || ini;
 
-      // Capacidade estimada: horas disponíveis ÷ 4h por US × 65% aproveitamento
-      var sqCapHours = 0;
-      sq.members.forEach(function(m){
-        if(m.hh > 0 && m.estMensal > 0) sqCapHours += m.estMensal / m.hh;
-        else if(m.estMensal > 0) sqCapHours += 160;
-      });
-      var sqUS = Math.round(sqCapHours * 0.65 / 4);
+      // Capacidade estimada: apenas desenvolvedores, 2–3 User Stories por dev/mês
+      var devCount = sq.members.filter(function(m){ return /desenvolv/i.test(m.papel||''); }).length;
+      var usMin = devCount * 2;
+      var usMax = devCount * 3;
 
       // Composição por papel
       var roleCount = {};
@@ -1810,18 +1807,18 @@
       h += '<span class="squad-ini-name" title="'+E(iniLabel)+'">'+E(iniLabel)+'</span>';
       h += '</div>';
       h += '<div class="squad-hdr-right">';
-      if(sqUS > 0){
+      if(devCount > 0){
         h += '<div style="text-align:right;">';
-        h += '<div class="squad-us-kpi">~'+sqUS+'<span>US/mês</span></div>';
-        h += '<div class="squad-us-sub">capacidade estimada</div>';
+        h += '<div class="squad-us-kpi">'+usMin+'–'+usMax+'<span>User Stories/mês</span></div>';
+        h += '<div class="squad-us-sub">'+devCount+' desenvolvedor'+(devCount===1?'':'es')+' · estimativa 2–3/mês</div>';
         h += '</div>';
       }
       h += '<span class="squad-count-badge">'+sq.members.length+' membro'+(sq.members.length===1?'':'s')+'</span>';
       h += '</div></div>';
-      // Faixa de composição por papel
+      // Faixa de composição por papel — fora do header, legível
       if(roleKeys.length > 0){
         h += '<div class="squad-roles">';
-        roleKeys.forEach(function(r){ h += '<span class="squad-role-chip">'+roleCount[r]+'× '+E(r)+'</span>'; });
+        roleKeys.forEach(function(r){ h += '<span class="squad-role-chip" style="background:'+color+'1a;color:'+color+';">'+roleCount[r]+'× '+E(r)+'</span>'; });
         h += '</div>';
       }
 
