@@ -380,15 +380,15 @@
   padding: 14px 16px 12px; gap: 8px;
 }
 .squad-hdr-left { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
-.squad-ini-code { font-size: 0.70rem; font-family: DM Mono, monospace; color: white; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800; }
-.squad-ini-name { font-size: 1.10rem; font-weight: 800; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+.squad-ini-code { font-size: 0.74rem; font-family: DM Mono, monospace; color: white; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800; }
+.squad-ini-name { font-size: 1.25rem; font-weight: 800; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.30); }
 .squad-hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
-.squad-us-kpi { font-size: 1.40rem; font-weight: 900; color: white; font-family: DM Mono, monospace; white-space: nowrap; line-height: 1.0; text-shadow: 0 1px 3px rgba(0,0,0,0.25); }
-.squad-us-kpi span { font-size: 0.66rem; font-weight: 700; color: white; display: block; text-align: right; margin-top: 3px; }
-.squad-us-sub { font-size: 0.64rem; font-weight: 600; color: rgba(255,255,255,0.90); letter-spacing: 0.02em; text-align: right; }
-.squad-count-badge { font-size: 0.68rem; font-weight: 700; background: rgba(255,255,255,0.25); color: white; border-radius: 20px; padding: 2px 11px; }
+.squad-us-kpi { font-size: 1.60rem; font-weight: 900; color: white; font-family: DM Mono, monospace; white-space: nowrap; line-height: 1.0; text-shadow: 0 1px 3px rgba(0,0,0,0.30); }
+.squad-us-kpi span { font-size: 0.74rem; font-weight: 700; color: white; display: block; text-align: right; margin-top: 3px; }
+.squad-us-sub { font-size: 0.68rem; font-weight: 600; color: white; letter-spacing: 0.02em; text-align: right; }
+.squad-count-badge { font-size: 0.72rem; font-weight: 700; background: rgba(255,255,255,0.25); color: white; border-radius: 20px; padding: 2px 12px; }
 .squad-roles { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; background: var(--c-surface-cont-low); border-bottom: 1px solid var(--c-outline-variant); }
-.squad-role-chip { font-size: 0.72rem; font-weight: 700; border-radius: 20px; padding: 3px 12px; white-space: nowrap; }
+.squad-role-chip { font-size: 0.74rem; font-weight: 700; border-radius: 20px; padding: 3px 12px; white-space: nowrap; }
 .squad-members { padding: 4px 0; flex: 1; overflow-x: auto; }
 .squad-members table { width: 100%; border-collapse: collapse; }
 .squad-members th {
@@ -408,13 +408,13 @@
 .sq-nome { font-weight: 700; color: var(--c-on-surface); max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 .sq-papel { color: var(--c-outline); font-size: 0.66rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 .sq-num { font-family: DM Mono, monospace; font-size: 0.69rem; }
-.squad-footer { padding: 10px 16px 12px; border-top: 1px solid var(--c-outline-variant); background: var(--c-surface-cont-low); }
-.squad-footer-lbl { font-size: 0.60rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--c-outline); font-weight: 600; }
-.squad-footer-val { font-size: 0.80rem; font-weight: 800; font-family: DM Mono, monospace; }
+.squad-footer { padding: 12px 16px 14px; border-top: 1px solid var(--c-outline-variant); background: var(--c-surface-cont-low); }
+.squad-footer-lbl { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--c-outline); font-weight: 700; }
+.squad-footer-val { font-size: 1.0rem; font-weight: 800; font-family: DM Mono, monospace; }
 .squad-footer-rows { width: 100%; border-collapse: collapse; margin-top: 6px; }
-.squad-footer-rows td { font-size: 0.68rem; padding: 3px 4px; vertical-align: middle; }
+.squad-footer-rows td { font-size: 0.76rem; padding: 4px 4px; vertical-align: middle; }
 .squad-footer-rows td.num { text-align: right; font-family: DM Mono, monospace; }
-.squad-footer-rows tr.sq-forn-total td { border-top: 1px solid var(--c-outline-variant); font-weight: 800; padding-top: 6px; }
+.squad-footer-rows tr.sq-forn-total td { border-top: 1px solid var(--c-outline-variant); font-weight: 800; padding-top: 8px; font-size: 0.84rem; }
 
 /* ===== Mapa de Calor reformulado (hx-) ===== */
 .hx-wrap { padding: 2px; }
@@ -1806,9 +1806,10 @@
       h += '</div>';
       h += '<div class="squad-hdr-right">';
       if(devCount > 0){
+        var usMin = devCount * 1, usMax = devCount * 2;
         h += '<div style="text-align:right;">';
-        h += '<div class="squad-us-kpi">1–2<span>User Stories / dev / mês</span></div>';
-        h += '<div class="squad-us-sub">'+devCount+' desenvolvedor'+(devCount===1?'':'es')+' → '+(devCount*1)+'–'+(devCount*2)+' histórias/mês</div>';
+        h += '<div class="squad-us-kpi">'+usMin+'–'+usMax+'<span>User Stories/mês</span></div>';
+        h += '<div class="squad-us-sub">estimativa · '+devCount+' desenvolvedor'+(devCount===1?'':'es')+'</div>';
         h += '</div>';
       }
       h += '<span class="squad-count-badge">'+sq.members.length+' membro'+(sq.members.length===1?'':'s')+'</span>';
