@@ -624,7 +624,7 @@
           <label>Status</label>
           <select id="prof-f-status">
             <option value="">Todos</option>
-            <option value="Ativo">Ativo</option>
+            <option value="Ativo" selected>Ativo</option>
             <option value="Inativo">Inativo</option>
           </select>
         </div>
@@ -692,7 +692,7 @@
   var _forecastRows   = [];   // linhas de routerGetForecastData (Forecast/Realizado/Estimado/...)
   var _forecastMonths = [];   // labels de meses do forecast ("jun.-26")
   var _forecastLoaded = false;
-  var _profFilters = { papel:'', iniciativa:'', fornecedor:'', status:'', nome:'' };  // filtros locais de Profissionais Alocados
+  var _profFilters = { papel:'', iniciativa:'', fornecedor:'', status:'Ativo', nome:'' };  // filtros locais de Profissionais Alocados
   var _prestadores = [];  // lista COMPLETA da aba PRESTADOR: [{mat, nome, status, papel}]
 
   function R(n) { return Math.round((parseFloat(n)||0)*100)/100; }
@@ -808,6 +808,7 @@
     var profIni    = document.getElementById('prof-f-iniciativa');
     var profForn   = document.getElementById('prof-f-fornecedor');
     var profStatus = document.getElementById('prof-f-status');
+    if (profStatus) profStatus.value = 'Ativo';
     var profNome   = document.getElementById('prof-f-nome');
     var profClear  = document.getElementById('prof-f-clear');
     function _onProfFilterChange() {
