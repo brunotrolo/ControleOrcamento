@@ -365,7 +365,7 @@
 .pvt-btn.pvt-active { background: var(--c-primary); color: var(--c-on-primary); }
 .squad-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 18px; padding: 4px 0 12px;
 }
 .squad-card {
@@ -1795,7 +1795,7 @@
 
       h += '<div class="squad-members"><table><thead><tr>'+
         '<th>Matrícula</th><th>Nome</th><th>Papel</th>'+
-        '<th class="num">Rate Card</th><th class="num">Est. Mensal</th><th class="num">Realizado</th>'+
+        '<th class="num">Rate Card</th><th class="num">Est. Mensal</th>'+
         '</tr></thead><tbody>';
       sq.members.forEach(function(m){
         var stStyle = m.status==='Ativo'
@@ -1812,7 +1812,6 @@
         h += '<td><span class="sq-papel" title="'+E(m.papel)+'">'+E(m.papel)+'</span></td>';
         h += '<td class="num sq-num" style="color:var(--c-outline);">'+(m.hh?BRL(m.hh):'—')+'</td>';
         h += '<td class="num sq-num" style="color:var(--c-outline);">'+(m.estMensal?BRL0(m.estMensal):'—')+'</td>';
-        h += '<td class="num sq-num" style="font-weight:700;color:'+color+';">'+(m.realIni?BRL0(m.realIni):'—')+'</td>';
         h += '</tr>';
       });
       h += '</tbody></table></div>';
