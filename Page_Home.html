@@ -404,9 +404,13 @@
 .sq-nome { font-weight: 700; color: var(--c-on-surface); max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 .sq-papel { color: var(--c-outline); font-size: 0.66rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 .sq-num { font-family: DM Mono, monospace; font-size: 0.69rem; }
-.squad-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-top: 1px solid var(--c-outline-variant); background: var(--c-surface-cont-low); }
+.squad-footer { padding: 10px 16px 12px; border-top: 1px solid var(--c-outline-variant); background: var(--c-surface-cont-low); }
 .squad-footer-lbl { font-size: 0.60rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--c-outline); font-weight: 600; }
-.squad-footer-val { font-size: 0.82rem; font-weight: 800; font-family: DM Mono, monospace; }
+.squad-footer-val { font-size: 0.80rem; font-weight: 800; font-family: DM Mono, monospace; }
+.squad-footer-rows { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.squad-footer-rows td { font-size: 0.68rem; padding: 3px 4px; vertical-align: middle; }
+.squad-footer-rows td.num { text-align: right; font-family: DM Mono, monospace; }
+.squad-footer-rows tr.sq-forn-total td { border-top: 1px solid var(--c-outline-variant); font-weight: 800; padding-top: 6px; }
 
 /* ===== Mapa de Calor reformulado (hx-) ===== */
 .hx-wrap { padding: 2px; }
@@ -1794,7 +1798,7 @@
       h += '</div></div>';
 
       h += '<div class="squad-members"><table><thead><tr>'+
-        '<th>Matrícula</th><th>Nome</th><th>Papel</th>'+
+        '<th>Matrícula</th><th>Nome</th><th>Papel</th><th>Consultoria</th>'+
         '<th class="num">Rate Card</th><th class="num">Est. Mensal</th>'+
         '</tr></thead><tbody>';
       sq.members.forEach(function(m){
@@ -1810,18 +1814,44 @@
               '<span class="sq-pill" style="'+stStyle+'">'+E(m.status)+'</span>'+
              '</div></td>';
         h += '<td><span class="sq-papel" title="'+E(m.papel)+'">'+E(m.papel)+'</span></td>';
+        h += '<td style="font-size:0.68rem;color:var(--c-outline);">'+E(m.fornecedor)+'</td>';
         h += '<td class="num sq-num" style="color:var(--c-outline);">'+(m.hh?BRL(m.hh):'—')+'</td>';
         h += '<td class="num sq-num" style="color:var(--c-outline);">'+(m.estMensal?BRL0(m.estMensal):'—')+'</td>';
         h += '</tr>';
       });
       h += '</tbody></table></div>';
 
+      // Rodapé: breakdown por consultoria + total geral
+      var byForn = {};
+      sq.members.forEach(function(m){
+        var f = m.fornecedor||'—';
+        if(!byForn[f]) byForn[f]={count:0,est:0};
+        byForn[f].count++;
+        byForn[f].est = R(byForn[f].est + m.estMensal);
+      });
+      var fornKeys = Object.keys(byForn).sort(function(a,b){ return byForn[b].est-byForn[a].est; });
       h += '<div class="squad-footer">';
-      h += '<span class="squad-footer-lbl">Total do Squad</span>';
-      h += '<div style="display:flex;gap:18px;">';
-      h += '<div><div class="squad-footer-lbl">Est. Mensal</div><div class="squad-footer-val">'+BRL0(sqEst)+'</div></div>';
-      h += '<div><div class="squad-footer-lbl">Realizado</div><div class="squad-footer-val" style="color:'+color+';">'+BRL0(sqTotal)+'</div></div>';
-      h += '</div></div>';
+      h += '<div class="squad-footer-lbl" style="margin-bottom:2px;">Por Consultoria</div>';
+      h += '<table class="squad-footer-rows">';
+      h += '<thead><tr>'+
+             '<td class="squad-footer-lbl">Consultoria</td>'+
+             '<td class="num squad-footer-lbl">Profissionais</td>'+
+             '<td class="num squad-footer-lbl">Est. Mensal</td>'+
+           '</tr></thead><tbody>';
+      fornKeys.forEach(function(f){
+        var fd = byForn[f];
+        h += '<tr>'+
+               '<td>'+E(f)+'</td>'+
+               '<td class="num">'+fd.count+'</td>'+
+               '<td class="num">'+BRL0(fd.est)+'</td>'+
+             '</tr>';
+      });
+      h += '</tbody><tfoot><tr class="sq-forn-total">'+
+             '<td style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--c-outline);">Total</td>'+
+             '<td class="num squad-footer-val">'+sq.members.length+'</td>'+
+             '<td class="num squad-footer-val">'+BRL0(sqEst)+'</td>'+
+           '</tr></tfoot></table>';
+      h += '</div>';
 
       h += '</div>';
     });
