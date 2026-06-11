@@ -342,6 +342,65 @@
   align-self: center;
 }
 
+/* ===== Vista de Squads ===== */
+.prof-view-toggle {
+  display: flex;
+  border: 1px solid var(--c-outline-variant);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  align-self: flex-end;
+}
+.pvt-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 14px;
+  font-size: 0.74rem; font-weight: 600;
+  background: var(--c-surface);
+  color: var(--c-on-surface-variant);
+  border: none; cursor: pointer;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+}
+.pvt-btn + .pvt-btn { border-left: 1px solid var(--c-outline-variant); }
+.pvt-btn:hover:not(.pvt-active) { background: var(--c-surface-cont); }
+.pvt-btn.pvt-active { background: var(--c-primary); color: var(--c-on-primary); }
+.squad-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px; padding: 4px 0 12px;
+}
+.squad-card {
+  border: 1px solid var(--c-outline-variant);
+  border-radius: 14px; overflow: hidden;
+  background: var(--c-surface);
+  display: flex; flex-direction: column;
+}
+.squad-hdr {
+  display: flex; align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 16px 12px; gap: 8px;
+}
+.squad-hdr-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.squad-ini-code { font-size: 0.62rem; font-family: DM Mono, monospace; color: rgba(255,255,255,0.72); text-transform: uppercase; letter-spacing: 0.1em; }
+.squad-ini-name { font-size: 0.90rem; font-weight: 700; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squad-hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.squad-total-val { font-size: 1.0rem; font-weight: 800; color: white; font-family: DM Mono, monospace; white-space: nowrap; }
+.squad-count-badge { font-size: 0.61rem; font-weight: 600; background: rgba(255,255,255,0.20); color: rgba(255,255,255,0.90); border-radius: 20px; padding: 1px 8px; }
+.squad-members { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; flex: 1; }
+.sq-member { background: var(--c-surface-cont-low); border: 1px solid var(--c-outline-variant); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
+.sq-member-top { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+.sq-mat { font-size: 0.59rem; font-family: DM Mono, monospace; color: var(--c-outline); letter-spacing: 0.03em; }
+.sq-pill { font-size: 0.57rem; font-weight: 700; padding: 1px 7px; border-radius: 20px; white-space: nowrap; }
+.sq-nome { font-size: 0.81rem; font-weight: 700; color: var(--c-on-surface); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sq-papel { font-size: 0.67rem; color: var(--c-outline); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sq-inibank { font-size: 0.59rem; font-family: DM Mono, monospace; color: var(--c-outline); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sq-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 3px; }
+.sq-metric { display: flex; flex-direction: column; gap: 1px; }
+.sq-metric-lbl { font-size: 0.52rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--c-outline); font-weight: 600; }
+.sq-metric-val { font-size: 0.68rem; font-weight: 700; font-family: DM Mono, monospace; color: var(--c-on-surface); }
+.squad-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-top: 1px solid var(--c-outline-variant); background: var(--c-surface-cont-low); }
+.squad-footer-lbl { font-size: 0.60rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--c-outline); font-weight: 600; }
+.squad-footer-val { font-size: 0.82rem; font-weight: 800; font-family: DM Mono, monospace; }
+
 /* ===== Mapa de Calor reformulado (hx-) ===== */
 .hx-wrap { padding: 2px; }
 
@@ -608,6 +667,14 @@
         </div>
       </div>
       <div class="prof-toolbar">
+        <div class="prof-view-toggle">
+          <button type="button" id="prof-view-lista" class="pvt-btn pvt-active" title="Vista em lista">
+            <span class="material-symbols-rounded" style="font-size:15px;">table_rows</span> Lista
+          </button>
+          <button type="button" id="prof-view-squad" class="pvt-btn" title="Vista por squads">
+            <span class="material-symbols-rounded" style="font-size:15px;">groups</span> Squads
+          </button>
+        </div>
         <div class="prof-filter">
           <label>Papel</label>
           <select id="prof-f-papel"><option value="">Todos</option></select>
@@ -693,6 +760,7 @@
   var _forecastMonths = [];   // labels de meses do forecast ("jun.-26")
   var _forecastLoaded = false;
   var _profFilters = { papel:'', iniciativa:'', fornecedor:'', status:'Ativo', nome:'' };  // filtros locais de Profissionais Alocados
+  var _profView = 'lista';  // 'lista' | 'squad'
   var _prestadores = [];  // lista COMPLETA da aba PRESTADOR: [{mat, nome, status, papel}]
 
   function R(n) { return Math.round((parseFloat(n)||0)*100)/100; }
@@ -834,6 +902,18 @@
       if (profNome)   profNome.value   = '';
       renderProfDetail(_filteredData);
     });
+
+    // Toggle Lista / Squads
+    var btnLista = document.getElementById('prof-view-lista');
+    var btnSquad = document.getElementById('prof-view-squad');
+    var _setProfView = function(v) {
+      _profView = v;
+      if(btnLista) btnLista.classList.toggle('pvt-active', v==='lista');
+      if(btnSquad) btnSquad.classList.toggle('pvt-active', v==='squad');
+      renderProfDetail(_filteredData);
+    };
+    if(btnLista) btnLista.addEventListener('click', function(){ _setProfView('lista'); });
+    if(btnSquad) btnSquad.addEventListener('click', function(){ _setProfView('squad'); });
 
     // Toggle Próximos Vencimentos / NFs Vencidas
     var nfBar = document.getElementById('nf-toggle-bar');
@@ -1507,15 +1587,7 @@
     sel.value = current || '';
   }
 
-  function renderProfDetail(data) {
-    var el = document.getElementById('home-prof-detail'); if(!el) return;
-
-    // Realizado vindo da aba analítica (junção por matrícula/nome).
-    var real = _realizadoAnalitico(data);
-
-    // Opções dos dropdowns:
-    //  - Papel, Fornecedor, Status: da aba PRESTADOR
-    //  - Iniciativa: da aba NOTA_FISCAL_ANALITICO
+  function _fillProfSelects(real) {
     var papeisOpt={}, fornsOpt={};
     _prestadores.forEach(function(pr){
       if(pr.papel) papeisOpt[pr.papel]=1;
@@ -1524,6 +1596,18 @@
     _fillSelect(document.getElementById('prof-f-papel'),      Object.keys(papeisOpt), _profFilters.papel);
     _fillSelect(document.getElementById('prof-f-fornecedor'), Object.keys(fornsOpt),  _profFilters.fornecedor);
     _fillSelect(document.getElementById('prof-f-iniciativa'), Object.keys(real.inisAll), _profFilters.iniciativa);
+  }
+
+  function renderProfDetail(data) {
+    if (_profView === 'squad') { _renderProfSquad(data); } else { _renderProfList(data); }
+  }
+
+  function _renderProfList(data) {
+    var el = document.getElementById('home-prof-detail'); if(!el) return;
+
+    // Realizado vindo da aba analítica (junção por matrícula/nome).
+    var real = _realizadoAnalitico(data);
+    _fillProfSelects(real);
 
     var iniSel = _profFilters.iniciativa;
     var nq = (_profFilters.nome||'').trim().toLowerCase();
@@ -1608,6 +1692,134 @@
       '<td class="col-valor" style="text-align:right;font-size:0.78rem;">'+BRL0(tot)+'</td>'+
       '<td></td></tr></tfoot></table>';
     el.innerHTML=h;
+  }
+
+  function _renderProfSquad(data) {
+    var el = document.getElementById('home-prof-detail'); if(!el) return;
+
+    var real = _realizadoAnalitico(data);
+    _fillProfSelects(real);
+
+    // Descrições das iniciativas (campo analítico)
+    var descs = {};
+    data.forEach(function(row){
+      var ini = String(row.iniciativa||'').trim();
+      var desc = String(row.iniciativa_descricao||'').trim();
+      if(ini && desc && !descs[ini]) descs[ini] = desc;
+    });
+
+    var iniSel = _profFilters.iniciativa;
+    var nq = (_profFilters.nome||'').trim().toLowerCase();
+
+    // squads: iniKey → { members: [] }
+    var squads = {};
+
+    _prestadores.forEach(function(pr){
+      if(_profFilters.papel      && pr.papel      !== _profFilters.papel)      return;
+      if(_profFilters.fornecedor && pr.fornecedor !== _profFilters.fornecedor) return;
+      if(_profFilters.status     && pr.status     !== _profFilters.status)     return;
+      if(nq && String(pr.nome).toLowerCase().indexOf(nq)===-1 && String(pr.mat).toLowerCase().indexOf(nq)===-1) return;
+
+      var r = real.byKey[_joinKey(pr.mat, pr.nome)] || null;
+
+      // Decide em quais squads este profissional aparece
+      var personInis;
+      if(r && Object.keys(r.inis).length > 0){
+        personInis = Object.keys(r.inis);
+      } else {
+        personInis = [pr.iniciativa || 'Sem Iniciativa'];
+      }
+
+      // Filtro de iniciativa
+      if(iniSel){
+        personInis = personInis.filter(function(i){ return i === iniSel; });
+        if(!personInis.length){
+          if(pr.iniciativa === iniSel) personInis = [iniSel];
+          else return;
+        }
+      }
+
+      personInis.forEach(function(ini){
+        if(!squads[ini]) squads[ini] = { members: [] };
+        squads[ini].members.push({
+          mat: pr.mat, nome: pr.nome, papel: pr.papel||'—',
+          status: pr.status||'—', fornecedor: pr.fornecedor||'—',
+          inibank: pr.iniciativa || ini,
+          hh: pr.hh||0, estMensal: pr.estMensal||0,
+          realIni: r && r.inis[ini] ? r.inis[ini] : 0
+        });
+      });
+    });
+
+    var sortedInis = Object.keys(squads).sort(function(a,b){
+      var ta=squads[a].members.reduce(function(s,m){return s+m.realIni;},0);
+      var tb=squads[b].members.reduce(function(s,m){return s+m.realIni;},0);
+      return tb-ta;
+    });
+
+    var totalPeople = sortedInis.reduce(function(s,i){return s+squads[i].members.length;},0);
+    var countEl = document.getElementById('prof-count');
+    if(countEl) countEl.textContent = totalPeople+' profissional'+(totalPeople===1?'':'s')+' · '+sortedInis.length+' squad'+(sortedInis.length===1?'':'s');
+
+    if(sortedInis.length===0){
+      el.innerHTML='<div class="empty-state"><span class="material-symbols-rounded">group_off</span><p>Nenhum profissional para os filtros selecionados</p></div>';
+      return;
+    }
+
+    var h = '<div class="squad-grid">';
+    sortedInis.forEach(function(ini, idx){
+      var sq = squads[ini];
+      sq.members.sort(function(a,b){ return b.realIni-a.realIni; });
+      var sqTotal = sq.members.reduce(function(s,m){ return R(s+m.realIni); }, 0);
+      var sqEst   = sq.members.reduce(function(s,m){ return R(s+m.estMensal); }, 0);
+      var color   = _CL[idx % _CL.length];
+      var iniLabel = descs[ini] || ini;
+
+      h += '<div class="squad-card">';
+      h += '<div class="squad-hdr" style="background:'+color+';">';
+      h += '<div class="squad-hdr-left">';
+      h += '<span class="squad-ini-code">'+E(ini)+'</span>';
+      h += '<span class="squad-ini-name" title="'+E(iniLabel)+'">'+E(iniLabel)+'</span>';
+      h += '</div>';
+      h += '<div class="squad-hdr-right">';
+      h += '<span class="squad-total-val">'+BRL0(sqTotal)+'</span>';
+      h += '<span class="squad-count-badge">'+sq.members.length+' membro'+(sq.members.length===1?'':'s')+'</span>';
+      h += '</div></div>';
+
+      h += '<div class="squad-members">';
+      sq.members.forEach(function(m){
+        var stStyle = m.status==='Ativo'
+          ? 'background:rgba(16,185,129,0.14);color:#10b981;'
+          : m.status==='Inativo'
+            ? 'background:var(--c-error-cont);color:var(--c-error);'
+            : 'background:var(--c-surface-cont);color:var(--c-outline);';
+        h += '<div class="sq-member">';
+        h += '<div class="sq-member-top">';
+        h += '<span class="sq-mat">'+E(m.mat)+'</span>';
+        h += '<span class="sq-pill" style="'+stStyle+'">'+E(m.status)+'</span>';
+        h += '</div>';
+        h += '<div class="sq-nome" title="'+E(m.nome)+'">'+E(m.nome)+'</div>';
+        h += '<div class="sq-papel">'+E(m.papel)+'</div>';
+        if(m.inibank && m.inibank !== ini) h += '<div class="sq-inibank">&#9679; INIBANK: '+E(m.inibank)+'</div>';
+        h += '<div class="sq-metrics">';
+        h += '<div class="sq-metric"><span class="sq-metric-lbl">Rate Card</span><span class="sq-metric-val">'+(m.hh?BRL(m.hh):'—')+'</span></div>';
+        h += '<div class="sq-metric"><span class="sq-metric-lbl">Est. Mensal</span><span class="sq-metric-val">'+(m.estMensal?BRL0(m.estMensal):'—')+'</span></div>';
+        h += '<div class="sq-metric"><span class="sq-metric-lbl">Realizado</span><span class="sq-metric-val" style="color:'+color+';">'+(m.realIni?BRL0(m.realIni):'—')+'</span></div>';
+        h += '</div></div>';
+      });
+      h += '</div>';
+
+      h += '<div class="squad-footer">';
+      h += '<span class="squad-footer-lbl">Total do Squad</span>';
+      h += '<div style="display:flex;gap:18px;">';
+      h += '<div><div class="squad-footer-lbl">Est. Mensal</div><div class="squad-footer-val">'+BRL0(sqEst)+'</div></div>';
+      h += '<div><div class="squad-footer-lbl">Realizado</div><div class="squad-footer-val" style="color:'+color+';">'+BRL0(sqTotal)+'</div></div>';
+      h += '</div></div>';
+
+      h += '</div>';
+    });
+    h += '</div>';
+    el.innerHTML = h;
   }
 
   // ── MAPA DE CALOR — MÊS × INICIATIVA (reformulado) ───────────────────
