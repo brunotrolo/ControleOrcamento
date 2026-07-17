@@ -1,0 +1,7 @@
+# Arquivos que NÃO devem ser enviados ao projeto Apps Script via clasp push.
+# clasp usa o mesmo formato de .gitignore.
+
+**/**
+!*.gs
+!*.html
+!appsscript.json

@@ -1,0 +1,15 @@
+# Credenciais do clasp — NUNCA commitar (contém token OAuth)
+.clasprc.json
+
+# Dependências Node (só usadas para a ferramenta clasp, não no runtime GAS)
+node_modules/
+
+# .clasp.json contém apenas o Script ID (não é segredo), mas cada
+# ambiente/conta pode apontar para um projeto Apps Script diferente —
+# mantenha local por padrão e use .clasp.json.example como referência.
+# Descomente a linha abaixo se preferir manter o .clasp.json fora do git:
+# .clasp.json
+
+# Editor / SO
+.DS_Store
+*.log

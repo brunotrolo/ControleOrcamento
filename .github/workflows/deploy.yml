@@ -1,0 +1,56 @@
+name: Deploy to Google Apps Script
+
+# Dispara em todo push na main — ou seja, toda vez que uma PR é mergeada.
+# Ver docs/DEPLOYMENT.md para o setup dos secrets usados aqui.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  clasp-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Configure clasp credentials
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+        run: |
+          if [ -z "$CLASP_CREDENTIALS" ]; then
+            echo "::error::Secret CLASP_CREDENTIALS não configurado. Veja docs/DEPLOYMENT.md."
+            exit 1
+          fi
+          echo "$CLASP_CREDENTIALS" > ~/.clasprc.json
+
+      - name: Configure .clasp.json
+        env:
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+        run: |
+          if [ -z "$CLASP_SCRIPT_ID" ]; then
+            echo "::error::Secret CLASP_SCRIPT_ID não configurado. Veja docs/DEPLOYMENT.md."
+            exit 1
+          fi
+          echo "{\"scriptId\":\"$CLASP_SCRIPT_ID\",\"rootDir\":\".\"}" > .clasp.json
+
+      - name: Push to Apps Script
+        run: clasp push -f
+
+      - name: Deploy production version (optional)
+        env:
+          CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
+        run: |
+          if [ -n "$CLASP_DEPLOYMENT_ID" ]; then
+            clasp deploy -i "$CLASP_DEPLOYMENT_ID" -d "Auto-deploy $GITHUB_SHA"
+          else
+            echo "CLASP_DEPLOYMENT_ID não configurado — pulando 'clasp deploy' (só HEAD foi atualizado)."
+          fi
